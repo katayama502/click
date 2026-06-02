@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   DndContext,
@@ -38,10 +38,37 @@ function createDefaultElement(type: ElementType): AppElement {
       return { id, type, props: { src: '', alt: '画像' } };
     case 'divider':
       return { id, type, props: {} };
+    case 'spacer':
+      return { id, type, props: { spacerHeight: 24 } };
     case 'input':
-      return { id, type, props: { placeholder: 'テキストを入力...' } };
+      return { id, type, props: { label: '', placeholder: 'テキストを入力...' } };
+    case 'textarea':
+      return { id, type, props: { label: '', placeholder: 'テキストを入力...', rows: 3 } };
+    case 'check':
+      return { id, type, props: { label: 'チェックボックス', checked: false } };
     case 'card':
       return { id, type, props: { text: 'カードタイトル' } };
+    case 'list':
+      return {
+        id, type, props: {
+          items: [
+            { id: uuidv4(), icon: '✅', title: 'リスト項目 1', subtitle: 'サブテキスト' },
+            { id: uuidv4(), icon: '⭐', title: 'リスト項目 2' },
+            { id: uuidv4(), icon: '🎯', title: 'リスト項目 3', subtitle: 'サブテキスト' },
+          ],
+        },
+      };
+    case 'nav':
+      return {
+        id, type, props: {
+          navItems: [
+            { id: uuidv4(), icon: '🏠', label: 'ホーム' },
+            { id: uuidv4(), icon: '🔍', label: '検索' },
+            { id: uuidv4(), icon: '❤️', label: 'お気に入り' },
+            { id: uuidv4(), icon: '👤', label: 'プロフィール' },
+          ],
+        },
+      };
     case 'container':
       return { id, type, props: { children: [] } };
     default:
@@ -54,13 +81,17 @@ export default function BuilderPage() {
   const {
     project,
     selectedPageId,
-    isPreviewMode,
     initProject,
     addElement,
     reorderElements,
     addPage,
     selectPage,
-    setPreviewMode,
+    renamePage,
+    deletePage,
+    undo,
+    redo,
+    canUndo,
+    canRedo,
     updateProjectName,
   } = useBuilderStore();
 
@@ -70,6 +101,11 @@ export default function BuilderPage() {
   const [editingName, setEditingName] = useState(false);
   const [nameInput, setNameInput] = useState('');
   const [isPublishing, setIsPublishing] = useState(false);
+
+  // Page rename state
+  const [editingPageId, setEditingPageId] = useState<string | null>(null);
+  const [pageNameInput, setPageNameInput] = useState('');
+  const [hoveredPageId, setHoveredPageId] = useState<string | null>(null);
 
   useEffect(() => {
     initProject();
@@ -81,13 +117,34 @@ export default function BuilderPage() {
     }
   }, [project?.name]);
 
+  // Global keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const isMac = navigator.platform.toUpperCase().includes('MAC');
+      const mod = isMac ? e.metaKey : e.ctrlKey;
+
+      // Don't fire when typing in an input/textarea
+      const target = e.target as HTMLElement;
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) {
+        return;
+      }
+
+      if (mod && e.key === 'z' && !e.shiftKey) {
+        e.preventDefault();
+        undo();
+      } else if (mod && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) {
+        e.preventDefault();
+        redo();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [undo, redo]);
+
   const sensors = useSensors(
-    useSensor(MouseSensor, {
-      activationConstraint: { distance: 5 },
-    }),
-    useSensor(TouchSensor, {
-      activationConstraint: { delay: 200, tolerance: 5 },
-    }),
+    useSensor(MouseSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 5 } }),
   );
 
   const handleDragStart = useCallback((event: DragStartEvent) => {
@@ -98,9 +155,7 @@ export default function BuilderPage() {
     }
   }, []);
 
-  const handleDragOver = useCallback((_event: DragOverEvent) => {
-    // Could handle cross-container drag here in the future
-  }, []);
+  const handleDragOver = useCallback((_event: DragOverEvent) => {}, []);
 
   const handleDragEnd = useCallback(
     (event: DragEndEvent) => {
@@ -117,12 +172,10 @@ export default function BuilderPage() {
       if (isFromPalette && isCanvasDrop) {
         const elementType = active.data.current?.type as ElementType;
         if (!elementType) return;
-        const newElement = createDefaultElement(elementType);
-        addElement(newElement);
+        addElement(createDefaultElement(elementType));
         return;
       }
 
-      // Reordering existing canvas elements
       if (!isFromPalette && active.id !== over.id) {
         const currentPage = project?.pages.find((p) => p.id === selectedPageId);
         if (!currentPage) return;
@@ -164,13 +217,23 @@ export default function BuilderPage() {
     setEditingName(false);
   };
 
+  const handlePageRenameSubmit = () => {
+    if (editingPageId && pageNameInput.trim()) {
+      renamePage(editingPageId, pageNameInput.trim());
+    }
+    setEditingPageId(null);
+    setPageNameInput('');
+  };
+
   const activeDragElement = activeDragType ? createDefaultElement(activeDragType) : null;
+  const undoable = canUndo();
+  const redoable = canRedo();
 
   if (!project) {
     return (
       <div className="flex items-center justify-center h-screen bg-slate-900">
         <div className="text-center">
-          <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <div className="w-8 h-8 border-2 border-[#1ec8a5] border-t-transparent rounded-full animate-spin mx-auto mb-4" />
           <p className="text-slate-400 text-sm">読み込み中...</p>
         </div>
       </div>
@@ -188,7 +251,7 @@ export default function BuilderPage() {
       onDragEnd={handleDragEnd}
     >
       <div className="builder-layout bg-slate-900">
-        {/* Toolbar */}
+        {/* ── Toolbar ── */}
         <header className="h-14 bg-slate-900 border-b border-slate-700 flex items-center px-4 gap-4 flex-shrink-0 z-10">
           {/* Left: Back + App name */}
           <div className="flex items-center gap-3 min-w-0 flex-1">
@@ -205,7 +268,7 @@ export default function BuilderPage() {
             <div className="h-4 w-px bg-slate-700" />
 
             <div className="flex items-center gap-2 min-w-0">
-              <div className="w-6 h-6 rounded bg-gradient-to-br from-blue-600 to-cyan-500 flex items-center justify-center shrink-0">
+              <div className="w-6 h-6 rounded bg-gradient-to-br from-[#1ec8a5] to-[#13a98a] flex items-center justify-center shrink-0">
                 <span className="text-white text-xs font-bold">C</span>
               </div>
               {editingName ? (
@@ -218,7 +281,8 @@ export default function BuilderPage() {
                     if (e.key === 'Enter') handleNameSubmit();
                     if (e.key === 'Escape') setEditingName(false);
                   }}
-                  className="bg-slate-700 text-slate-200 text-sm font-semibold px-2 py-0.5 rounded border border-slate-500 outline-none focus:border-blue-500 min-w-0 w-48"
+                  maxLength={100}
+                  className="bg-slate-700 text-slate-200 text-sm font-semibold px-2 py-0.5 rounded border border-slate-500 outline-none focus:border-[#1ec8a5] min-w-0 w-48"
                   autoFocus
                 />
               ) : (
@@ -231,26 +295,62 @@ export default function BuilderPage() {
                 </button>
               )}
             </div>
+
+            {/* Undo / Redo */}
+            <div className="flex items-center gap-0.5 ml-1">
+              <button
+                onClick={undo}
+                disabled={!undoable}
+                title="元に戻す (Ctrl+Z)"
+                className="p-1.5 rounded-md text-slate-400 hover:text-slate-200 hover:bg-slate-700 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
+                </svg>
+              </button>
+              <button
+                onClick={redo}
+                disabled={!redoable}
+                title="やり直す (Ctrl+Y)"
+                className="p-1.5 rounded-md text-slate-400 hover:text-slate-200 hover:bg-slate-700 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 10H11a8 8 0 00-8 8v2m18-10l-6 6m6-6l-6-6" />
+                </svg>
+              </button>
+            </div>
           </div>
 
           {/* Center: View mode toggle */}
           <div className="flex items-center bg-slate-800 rounded-lg p-1 gap-0.5">
             {([
-              { mode: 'desktop' as ViewMode, icon: (
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17H3a2 2 0 01-2-2V5a2 2 0 012-2h14a2 2 0 012 2v10a2 2 0 01-2 2h-2" />
-                </svg>
-              ), label: 'デスクトップ' },
-              { mode: 'tablet' as ViewMode, icon: (
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 18h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                </svg>
-              ), label: 'タブレット' },
-              { mode: 'mobile' as ViewMode, icon: (
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                </svg>
-              ), label: 'モバイル' },
+              {
+                mode: 'desktop' as ViewMode,
+                icon: (
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17H3a2 2 0 01-2-2V5a2 2 0 012-2h14a2 2 0 012 2v10a2 2 0 01-2 2h-2" />
+                  </svg>
+                ),
+                label: 'デスクトップ',
+              },
+              {
+                mode: 'tablet' as ViewMode,
+                icon: (
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 18h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                  </svg>
+                ),
+                label: 'タブレット',
+              },
+              {
+                mode: 'mobile' as ViewMode,
+                icon: (
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                  </svg>
+                ),
+                label: 'モバイル',
+              },
             ] as const).map(({ mode, icon, label }) => (
               <button
                 key={mode}
@@ -258,7 +358,7 @@ export default function BuilderPage() {
                 title={label}
                 className={`p-1.5 rounded-md transition-colors ${
                   viewMode === mode
-                    ? 'bg-blue-600 text-white'
+                    ? 'bg-[#1ec8a5] text-white'
                     : 'text-slate-400 hover:text-slate-200'
                 }`}
               >
@@ -282,7 +382,7 @@ export default function BuilderPage() {
             <button
               onClick={handlePublish}
               disabled={isPublishing}
-              className="flex items-center gap-1.5 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 disabled:bg-blue-800 disabled:cursor-wait px-4 py-1.5 rounded-lg transition-colors"
+              className="flex items-center gap-1.5 text-sm font-semibold text-white bg-[#1ec8a5] hover:bg-[#13a98a] disabled:bg-[#13a98a] disabled:cursor-wait px-4 py-1.5 rounded-lg transition-colors"
             >
               {isPublishing ? (
                 <>
@@ -301,7 +401,7 @@ export default function BuilderPage() {
           </div>
         </header>
 
-        {/* Main builder area */}
+        {/* ── Main builder area ── */}
         <div className="builder-main">
           {/* Page tabs + Palette sidebar */}
           <div className="flex flex-col builder-sidebar">
@@ -312,22 +412,69 @@ export default function BuilderPage() {
               </div>
               <div className="space-y-0.5">
                 {project.pages.map((page) => (
-                  <button
+                  <div
                     key={page.id}
-                    onClick={() => selectPage(page.id)}
-                    className={`w-full text-left px-3 py-1.5 rounded-md text-sm transition-colors ${
-                      selectedPageId === page.id
-                        ? 'bg-blue-600/20 text-blue-300 border border-blue-500/30'
-                        : 'text-slate-400 hover:bg-slate-700 hover:text-slate-200'
-                    }`}
+                    className="relative"
+                    onMouseEnter={() => setHoveredPageId(page.id)}
+                    onMouseLeave={() => setHoveredPageId(null)}
                   >
-                    <div className="flex items-center gap-2">
-                      <svg className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                      </svg>
-                      <span className="truncate">{page.name}</span>
-                    </div>
-                  </button>
+                    {editingPageId === page.id ? (
+                      <input
+                        type="text"
+                        value={pageNameInput}
+                        onChange={(e) => setPageNameInput(e.target.value)}
+                        onBlur={handlePageRenameSubmit}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') handlePageRenameSubmit();
+                          if (e.key === 'Escape') {
+                            setEditingPageId(null);
+                            setPageNameInput('');
+                          }
+                        }}
+                        maxLength={50}
+                        className="w-full bg-slate-700 text-slate-200 text-sm px-3 py-1.5 rounded-md border border-[#1ec8a5] outline-none"
+                        autoFocus
+                      />
+                    ) : (
+                      <button
+                        onClick={() => selectPage(page.id)}
+                        onDoubleClick={() => {
+                          setEditingPageId(page.id);
+                          setPageNameInput(page.name);
+                        }}
+                        className={`w-full text-left px-3 py-1.5 rounded-md text-sm transition-colors ${
+                          selectedPageId === page.id
+                            ? 'bg-[#1ec8a5]/20 text-[#1ec8a5] border border-[#1ec8a5]/30'
+                            : 'text-slate-400 hover:bg-slate-700 hover:text-slate-200'
+                        }`}
+                        title="ダブルクリックでリネーム"
+                      >
+                        <div className="flex items-center gap-2">
+                          <svg className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                          </svg>
+                          <span className="truncate flex-1">{page.name}</span>
+                          {/* Delete button — only show when there are 2+ pages */}
+                          {hoveredPageId === page.id && project.pages.length > 1 && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (confirm(`「${page.name}」を削除しますか？`)) {
+                                  deletePage(page.id);
+                                }
+                              }}
+                              className="ml-auto text-slate-500 hover:text-red-400 transition-colors p-0.5 rounded shrink-0"
+                              title="ページを削除"
+                            >
+                              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                              </svg>
+                            </button>
+                          )}
+                        </div>
+                      </button>
+                    )}
+                  </div>
                 ))}
                 <button
                   onClick={() => addPage()}
@@ -360,7 +507,7 @@ export default function BuilderPage() {
       {/* Drag overlay */}
       <DragOverlay>
         {activeDragElement ? (
-          <div className="drag-overlay bg-white rounded-lg p-3 shadow-xl border border-blue-300 max-w-xs">
+          <div className="drag-overlay bg-white rounded-lg p-3 shadow-xl border border-[#1ec8a5] max-w-xs">
             <ElementRenderer element={activeDragElement} />
           </div>
         ) : null}

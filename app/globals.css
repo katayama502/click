@@ -3,23 +3,32 @@
 @tailwind utilities;
 
 :root {
-  --color-primary: #2563eb;
-  --color-primary-dark: #1d4ed8;
-  --color-accent: #0891b2;
-  --color-accent-light: #22d3ee;
-  --color-background: #f8fafc;
-  --color-surface: #ffffff;
-  --color-border: #e2e8f0;
-  --color-text-primary: #0f172a;
-  --color-text-secondary: #64748b;
-  --color-text-muted: #94a3b8;
+  /* Click design tokens — spec §3.1 */
+  --green:   #1ec8a5;
+  --green-d: #13a98a;
+  --green-l: #e6faf5;
+  --ink:     #1d2b2b;
+  --gray:    #5f6c6c;
+  --line:    #e3eceb;
+  --bg:      #ffffff;
+  --bg2:     #f4faf8;
+  --yellow:  #ffd54a;
+  --radius:  18px;
+  --shadow:  0 10px 30px rgba(20, 60, 55, .08);
 
+  /* Layout */
   --sidebar-width: 280px;
   --toolbar-height: 56px;
-  --radius: 8px;
-  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
-  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
-  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+
+  /* Alias for Tailwind usage */
+  --color-primary:        var(--green);
+  --color-primary-dark:   var(--green-d);
+  --color-primary-light:  var(--green-l);
+  --color-background:     var(--bg2);
+  --color-surface:        var(--bg);
+  --color-border:         var(--line);
+  --color-text-primary:   var(--ink);
+  --color-text-secondary: var(--gray);
 }
 
 * {
@@ -35,18 +44,27 @@ body {
 body {
   background-color: var(--color-background);
   color: var(--color-text-primary);
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
-    'Helvetica Neue', Arial, sans-serif;
+  /* spec §3.2: Japanese font stack */
+  font-family:
+    'Hiragino Kaku Gothic ProN',
+    'Hiragino Sans',
+    'Noto Sans JP',
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* Builder specific */
+/* ── Builder layout ── */
 .builder-layout {
   display: flex;
   flex-direction: column;
   height: 100vh;
   overflow: hidden;
+  /* Builder uses different font to avoid Japanese font on code labels */
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }
 
 .builder-main {
@@ -83,7 +101,7 @@ body {
   flex-shrink: 0;
 }
 
-/* Canvas element selection */
+/* ── Canvas element selection ── */
 .canvas-element {
   position: relative;
   cursor: pointer;
@@ -93,11 +111,11 @@ body {
 }
 
 .canvas-element:hover {
-  border-color: #93c5fd;
+  border-color: #6ee7d4; /* green-300 */
 }
 
 .canvas-element.selected {
-  border-color: #2563eb;
+  border-color: var(--green);
   outline: none;
 }
 
@@ -106,18 +124,18 @@ body {
   position: absolute;
   inset: -2px;
   border-radius: 4px;
-  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2);
+  box-shadow: 0 0 0 2px rgba(30, 200, 165, 0.2);
   pointer-events: none;
 }
 
-/* Drag overlay */
+/* ── Drag overlay ── */
 .drag-overlay {
   opacity: 0.8;
-  box-shadow: var(--shadow-lg);
-  border-radius: var(--radius);
+  box-shadow: 0 10px 30px rgba(20, 60, 55, .15);
+  border-radius: 8px;
 }
 
-/* Palette item */
+/* ── Palette item ── */
 .palette-item {
   display: flex;
   align-items: center;
@@ -140,42 +158,29 @@ body {
   transform: scale(0.98);
 }
 
-/* Scrollbar styling */
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
-  border-radius: 3px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
-}
+/* ── Scrollbar styling ── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
 
 .builder-sidebar::-webkit-scrollbar-thumb,
-.builder-properties::-webkit-scrollbar-thumb {
-  background: #475569;
-}
+.builder-properties::-webkit-scrollbar-thumb { background: #475569; }
 
-/* Drop zone indicator */
+/* ── Drop zone ── */
 .drop-zone-active {
-  background: rgba(37, 99, 235, 0.05);
-  border: 2px dashed #2563eb !important;
+  background: rgba(30, 200, 165, 0.05);
+  border: 2px dashed var(--green) !important;
 }
 
-/* Phone frame */
+/* ── Phone frame ── */
 .phone-frame {
   background: #1a1a2e;
   border-radius: 40px;
   padding: 12px;
-  box-shadow: 0 0 0 2px #334155, 0 20px 60px rgba(0, 0, 0, 0.3),
+  box-shadow:
+    0 0 0 2px #334155,
+    0 20px 60px rgba(0, 0, 0, 0.3),
     inset 0 1px 0 rgba(255, 255, 255, 0.1);
 }
 
@@ -186,25 +191,15 @@ body {
   position: relative;
 }
 
-.phone-notch {
-  height: 28px;
-  background: #1a1a2e;
-  border-radius: 0 0 18px 18px;
-  width: 120px;
-  margin: 0 auto;
-  position: relative;
-  z-index: 10;
-}
-
-/* Gradient text */
+/* ── Gradient text (LP) ── */
 .gradient-text {
-  background: linear-gradient(135deg, #2563eb 0%, #0891b2 50%, #7c3aed 100%);
+  background: linear-gradient(135deg, var(--green) 0%, #0ea5e9 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
 }
 
-/* Section label */
+/* ── Section label ── */
 .section-label {
   font-size: 10px;
   font-weight: 600;
@@ -216,7 +211,7 @@ body {
   margin-top: 16px;
 }
 
-/* Property input */
+/* ── Property input ── */
 .prop-input {
   width: 100%;
   background: #0f172a;
@@ -230,7 +225,7 @@ body {
 }
 
 .prop-input:focus {
-  border-color: #2563eb;
+  border-color: var(--green);
 }
 
 .prop-label {
@@ -238,4 +233,15 @@ body {
   color: #94a3b8;
   margin-bottom: 4px;
   display: block;
+}
+
+/* ── FAQ accordion ── */
+.faq-answer {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s ease, padding 0.3s ease;
+}
+
+.faq-answer.open {
+  max-height: 500px;
 }
