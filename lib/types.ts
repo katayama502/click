@@ -1,16 +1,39 @@
 export type ElementType =
+  // ベーシック
   | 'text'
   | 'heading'
-  | 'button'
   | 'image'
+  | 'video'
   | 'divider'
   | 'spacer'
+  | 'shape'
+  // アクション
+  | 'button'
+  | 'toggle'
+  | 'iconbutton'
+  // フォーム
   | 'input'
   | 'textarea'
+  | 'password'
+  | 'date'
+  | 'dropdown'
   | 'check'
+  | 'radio'
+  | 'fileupload'
+  | 'stepper'
+  | 'rating'
+  // データ表示
   | 'card'
   | 'list'
+  | 'table'
+  | 'badge'
+  | 'avatar'
+  | 'progress'
+  | 'tag'
   | 'nav'
+  | 'carousel'
+  | 'qrcode'
+  // レイアウト
   | 'container';
 
 export interface ListItem {
@@ -26,32 +49,99 @@ export interface NavItem {
   label: string;
 }
 
+export interface TableColumn {
+  id: string;
+  label: string;
+}
+
+export interface TableRow {
+  id: string;
+  cells: string[];
+}
+
+export interface RadioOption {
+  id: string;
+  label: string;
+  value: string;
+}
+
+export interface DropdownOption {
+  id: string;
+  label: string;
+  value: string;
+}
+
+export interface CarouselItem {
+  id: string;
+  src?: string;
+  caption?: string;
+}
+
 export interface AppElement {
   id: string;
   type: ElementType;
   props: {
-    // Text / heading / button / card
+    // テキスト / 見出し / ボタン / カード
     text?: string;
-    // Input / textarea
+    // フォームラベル / プレースホルダー
     label?: string;
     placeholder?: string;
     rows?: number;
-    // Check
+    // チェック / ラジオ
     checked?: boolean;
-    // Image
+    radioOptions?: RadioOption[];
+    // ドロップダウン
+    dropdownOptions?: DropdownOption[];
+    dropdownValue?: string;
+    // 画像 / 動画
     src?: string;
     alt?: string;
-    // Button
+    videoUrl?: string;
+    // ボタンリンク
     href?: string;
-    variant?: 'primary' | 'secondary' | 'outline';
+    variant?: 'primary' | 'secondary' | 'outline' | 'ghost';
     size?: 'sm' | 'md' | 'lg';
-    // Spacer
+    // シェイプ
+    shapeType?: 'rect' | 'circle' | 'rounded';
+    // スペーサー
     spacerHeight?: number;
-    // List
+    // ステッパー
+    stepperValue?: number;
+    stepperMin?: number;
+    stepperMax?: number;
+    // 評価（星）
+    ratingValue?: number;
+    ratingMax?: number;
+    // バッジ
+    badgeColor?: string;
+    badgeVariant?: 'solid' | 'outline' | 'subtle';
+    // アバター
+    avatarSrc?: string;
+    avatarName?: string;
+    avatarSize?: 'sm' | 'md' | 'lg';
+    // プログレスバー
+    progressValue?: number;
+    progressMax?: number;
+    progressColor?: string;
+    // トグル
+    toggleValue?: boolean;
+    // アイコンボタン
+    iconName?: string;
+    iconSize?: number;
+    // リスト
     items?: ListItem[];
-    // Nav
+    // テーブル
+    tableColumns?: TableColumn[];
+    tableRows?: TableRow[];
+    // ナビ
     navItems?: NavItem[];
-    // Style
+    // カルーセル
+    carouselItems?: CarouselItem[];
+    // QRコード
+    qrValue?: string;
+    // タグ
+    tags?: string[];
+    // スタイル共通
     align?: 'left' | 'center' | 'right';
     color?: string;
     bgColor?: string;
@@ -62,7 +152,7 @@ export interface AppElement {
     borderRadius?: string;
     width?: string;
     height?: string;
-    // Container children
+    // コンテナ子要素
     children?: AppElement[];
   };
 }
