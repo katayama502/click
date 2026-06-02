@@ -152,6 +152,15 @@ export interface AppElement {
     borderRadius?: string;
     width?: string;
     height?: string;
+    // カードの追加フィールド
+    imageSrc?: string;
+    subtitle?: string;
+    buttonText?: string;
+    // ディバイダーの追加フィールド
+    dividerThickness?: number;
+    dividerStyle?: 'solid' | 'dashed' | 'dotted';
+    // ナビの追加フィールド
+    navActiveIndex?: number;
     // コンテナ子要素
     children?: AppElement[];
   };

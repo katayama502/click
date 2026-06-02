@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useBuilderStore } from '@/lib/store';
-import { AppElement, ListItem, NavItem, RadioOption, DropdownOption } from '@/lib/types';
+import { AppElement, ListItem, NavItem, RadioOption, DropdownOption, TableColumn, TableRow, CarouselItem } from '@/lib/types';
 import { v4 as uuidv4 } from 'uuid';
 import { cn } from '@/lib/utils';
 
@@ -46,6 +46,150 @@ function PSection({ title }: { title: string }) {
 
 function isSafeUrl(url: string) { return url === '' || /^https?:\/\//i.test(url); }
 
+/* ─── Table editor ─── */
+function TableEditor({ columns, rows, onChange }: {
+  columns: TableColumn[];
+  rows: TableRow[];
+  onChange: (columns: TableColumn[], rows: TableRow[]) => void;
+}) {
+  const addColumn = () => {
+    const newCol: TableColumn = { id: uuidv4(), label: `列${columns.length + 1}` };
+    const newCols = [...columns, newCol];
+    const newRows = rows.map((r) => ({ ...r, cells: [...r.cells, ''] }));
+    onChange(newCols, newRows);
+  };
+
+  const removeColumn = (colIdx: number) => {
+    const newCols = columns.filter((_, i) => i !== colIdx);
+    const newRows = rows.map((r) => ({ ...r, cells: r.cells.filter((_, i) => i !== colIdx) }));
+    onChange(newCols, newRows);
+  };
+
+  const updateColumnLabel = (colIdx: number, label: string) => {
+    const newCols = columns.map((c, i) => i === colIdx ? { ...c, label } : c);
+    onChange(newCols, rows);
+  };
+
+  const addRow = () => {
+    const newRow: TableRow = { id: uuidv4(), cells: columns.map(() => '') };
+    onChange(columns, [...rows, newRow]);
+  };
+
+  const removeRow = (rowIdx: number) => {
+    onChange(columns, rows.filter((_, i) => i !== rowIdx));
+  };
+
+  const updateCell = (rowIdx: number, colIdx: number, value: string) => {
+    const newRows = rows.map((r, i) =>
+      i === rowIdx ? { ...r, cells: r.cells.map((c, j) => j === colIdx ? value : c) } : r
+    );
+    onChange(columns, newRows);
+  };
+
+  return (
+    <div className="mb-3">
+      <PLabel>テーブル列</PLabel>
+      <div className="space-y-1.5 mb-2">
+        {columns.map((col, ci) => (
+          <div key={col.id} className="flex gap-1.5 bg-slate-800 rounded-lg p-1.5">
+            <input
+              type="text"
+              value={col.label}
+              onChange={(e) => updateColumnLabel(ci, e.target.value)}
+              placeholder={`列${ci + 1}`}
+              maxLength={50}
+              className="prop-input flex-1 text-xs"
+            />
+            <button onClick={() => removeColumn(ci)} className="text-red-400 hover:text-red-300 text-xs px-1">×</button>
+          </div>
+        ))}
+      </div>
+      <button onClick={addColumn}
+        className="mb-4 w-full py-1.5 rounded-md text-xs font-medium bg-slate-700 text-slate-300 hover:bg-slate-600 transition-colors border border-slate-600">
+        ＋ 列を追加
+      </button>
+      <PLabel>テーブル行</PLabel>
+      <div className="space-y-1.5 max-h-48 overflow-y-auto mb-2">
+        {rows.map((row, ri) => (
+          <div key={row.id} className="bg-slate-800 rounded-lg p-1.5">
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-slate-500 text-[10px]">行 {ri + 1}</span>
+              <button onClick={() => removeRow(ri)} className="text-red-400 hover:text-red-300 text-xs px-1">×</button>
+            </div>
+            <div className="space-y-1">
+              {columns.map((col, ci) => (
+                <input
+                  key={col.id}
+                  type="text"
+                  value={row.cells[ci] ?? ''}
+                  onChange={(e) => updateCell(ri, ci, e.target.value)}
+                  placeholder={col.label}
+                  maxLength={200}
+                  className="prop-input w-full text-xs"
+                />
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+      <button onClick={addRow}
+        className="w-full py-1.5 rounded-md text-xs font-medium bg-slate-700 text-slate-300 hover:bg-slate-600 transition-colors border border-slate-600">
+        ＋ 行を追加
+      </button>
+    </div>
+  );
+}
+
+/* ─── Carousel items editor ─── */
+function CarouselItemsEditor({ items, onChange }: {
+  items: CarouselItem[];
+  onChange: (items: CarouselItem[]) => void;
+}) {
+  const update = (i: number, patch: Partial<CarouselItem>) =>
+    onChange(items.map((it, j) => j === i ? { ...it, ...patch } : it));
+  const remove = (i: number) => onChange(items.filter((_, j) => j !== i));
+  const add = () => onChange([...items, { id: uuidv4(), src: '', caption: '' }]);
+
+  return (
+    <div className="mb-3">
+      <PLabel>スライド</PLabel>
+      <div className="space-y-2 max-h-64 overflow-y-auto mb-2">
+        {items.map((item, i) => (
+          <div key={item.id} className="bg-slate-800 rounded-lg p-2 space-y-1.5">
+            <div className="flex items-center justify-between">
+              <span className="text-slate-500 text-[10px]">スライド {i + 1}</span>
+              <button onClick={() => remove(i)} className="text-red-400 hover:text-red-300 text-xs px-1">×</button>
+            </div>
+            <input
+              type="text"
+              value={item.src || ''}
+              onChange={(e) => { if (isSafeUrl(e.target.value)) update(i, { src: e.target.value }); }}
+              placeholder="https://example.com/img.jpg"
+              maxLength={2048}
+              className="prop-input w-full text-xs"
+            />
+            {item.src && !isSafeUrl(item.src) && (
+              <p className="text-red-400 text-xs">⚠ https:// で始めてください</p>
+            )}
+            <input
+              type="text"
+              value={item.caption || ''}
+              onChange={(e) => update(i, { caption: e.target.value })}
+              placeholder="キャプション"
+              maxLength={200}
+              className="prop-input w-full text-xs"
+            />
+          </div>
+        ))}
+      </div>
+      <button onClick={add}
+        className="w-full py-1.5 rounded-md text-xs font-medium bg-slate-700 text-slate-300 hover:bg-slate-600 transition-colors border border-slate-600">
+        ＋ スライドを追加
+      </button>
+    </div>
+  );
+}
+
 /* ─── Main element properties ─── */
 function ElementProperties({ element }: { element: AppElement }) {
   const { updateElement } = useBuilderStore();
@@ -70,8 +214,24 @@ function ElementProperties({ element }: { element: AppElement }) {
         </PRow>
       )}
 
+      {/* ─ Card extra props ─ */}
+      {type === 'card' && (
+        <>
+          <PRow label="サブタイトル">
+            <PInput value={props.subtitle || ''} onChange={(v) => up({ subtitle: v })} placeholder="カードの説明テキスト" maxLength={300} />
+          </PRow>
+          <PRow label="画像URL (https://)">
+            <PInput value={props.imageSrc || ''} onChange={(v) => { if (isSafeUrl(v)) up({ imageSrc: v }); }} placeholder="https://example.com/img.jpg" maxLength={2048} />
+            {props.imageSrc && !isSafeUrl(props.imageSrc) && <p className="text-red-400 text-xs mt-1">⚠ https:// で始めてください</p>}
+          </PRow>
+          <PRow label="ボタンテキスト (空欄で非表示)">
+            <PInput value={props.buttonText || ''} onChange={(v) => up({ buttonText: v })} placeholder="詳細を見る" maxLength={50} />
+          </PRow>
+        </>
+      )}
+
       {/* ─ Label ─ */}
-      {(['input','textarea','password','date','dropdown','check','radio','fileupload','stepper','rating','toggle','avatar','progress'].includes(type)) && (
+      {(['input','textarea','password','date','dropdown','check','radio','fileupload','stepper','rating','toggle','avatar','progress','table'].includes(type)) && (
         <PRow label="ラベル">
           <PInput value={props.label || ''} onChange={(v) => up({ label: v })} placeholder="ラベルテキスト..." maxLength={100} />
         </PRow>
@@ -169,6 +329,21 @@ function ElementProperties({ element }: { element: AppElement }) {
         </PRow>
       )}
 
+      {/* ─ Divider ─ */}
+      {type === 'divider' && (
+        <>
+          <PRow label="スタイル">
+            <PSelect value={props.dividerStyle || 'solid'} onChange={(v) => up({ dividerStyle: v as 'solid' | 'dashed' | 'dotted' })}
+              options={[{ label: '実線', value: 'solid' },{ label: '破線', value: 'dashed' },{ label: '点線', value: 'dotted' }]} />
+          </PRow>
+          <PRow label="太さ (px)">
+            <PSelect value={String(props.dividerThickness ?? 1)} onChange={(v) => up({ dividerThickness: Number(v) })}
+              options={[1,2,3,4,6,8].map((n) => ({ label: `${n}px`, value: String(n) }))} />
+          </PRow>
+          <PColorRow label="色" value={props.color || '#e3eceb'} onChange={(v) => up({ color: v })} />
+        </>
+      )}
+
       {/* ─ Stepper ─ */}
       {type === 'stepper' && (
         <>
@@ -224,6 +399,20 @@ function ElementProperties({ element }: { element: AppElement }) {
         </>
       )}
 
+      {/* ─ Check ─ */}
+      {type === 'check' && (
+        <PRow label="初期状態">
+          <button onClick={() => up({ checked: !props.checked })}
+            className={cn('flex items-center gap-2 text-xs transition-colors', props.checked ? 'text-[#1ec8a5]' : 'text-slate-400')}>
+            <div className={cn('w-4 h-4 rounded border-2 flex items-center justify-center transition-colors',
+              props.checked ? 'bg-[#1ec8a5] border-[#1ec8a5]' : 'border-slate-600')}>
+              {props.checked && <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>}
+            </div>
+            {props.checked ? 'チェック済み' : '未チェック'}
+          </button>
+        </PRow>
+      )}
+
       {/* ─ Tags ─ */}
       {type === 'tag' && (
         <TagsEditor tags={props.tags ?? []} onChange={(tags) => up({ tags })} />
@@ -270,7 +459,27 @@ function ElementProperties({ element }: { element: AppElement }) {
 
       {/* ─ Nav items ─ */}
       {type === 'nav' && (
-        <NavItemsEditor items={props.navItems ?? []} onChange={(navItems) => up({ navItems })} />
+        <>
+          <NavItemsEditor items={props.navItems ?? []} onChange={(navItems) => up({ navItems })} />
+          <PRow label="アクティブタブ">
+            <PSelect value={String(props.navActiveIndex ?? 0)} onChange={(v) => up({ navActiveIndex: Number(v) })}
+              options={(props.navItems ?? [{ id: '0', label: 'ホーム' }]).map((item, i) => ({ label: `${i}: ${item.label}`, value: String(i) }))} />
+          </PRow>
+        </>
+      )}
+
+      {/* ─ Table ─ */}
+      {type === 'table' && (
+        <TableEditor
+          columns={props.tableColumns ?? []}
+          rows={props.tableRows ?? []}
+          onChange={(tableColumns, tableRows) => up({ tableColumns, tableRows })}
+        />
+      )}
+
+      {/* ─ Carousel ─ */}
+      {type === 'carousel' && (
+        <CarouselItemsEditor items={props.carouselItems ?? []} onChange={(carouselItems) => up({ carouselItems })} />
       )}
 
       {/* ─ QR code ─ */}
@@ -303,6 +512,12 @@ function ElementProperties({ element }: { element: AppElement }) {
       )}
       {['card','container','button'].includes(type) && (
         <PColorRow label="背景色" value={props.bgColor || ''} onChange={(v) => up({ bgColor: v })} />
+      )}
+      {type === 'container' && (
+        <>
+          <PColorRow label="背景色" value={props.bgColor || ''} onChange={(v) => up({ bgColor: v })} />
+          <PRow label="パディング"><PInput value={props.padding || ''} onChange={(v) => up({ padding: v })} placeholder="16px" maxLength={40} /></PRow>
+        </>
       )}
       {(type === 'text' || type === 'heading') && (
         <>
