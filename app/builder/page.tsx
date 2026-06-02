@@ -159,6 +159,8 @@ export default function BuilderPage() {
       setActiveDragType(event.active.data.current.type as ElementType);
   }, []);
 
+  const handleDragOver = useCallback((_: DragOverEvent) => {}, []);
+
   const handleDragEnd = useCallback((event: DragEndEvent) => {
     const { active, over } = event;
     setActiveDragType(null);
@@ -217,7 +219,7 @@ export default function BuilderPage() {
       sensors={sensors}
       collisionDetection={closestCenter}
       onDragStart={handleDragStart}
-      onDragOver={useCallback((_: DragOverEvent) => {}, [])}
+      onDragOver={handleDragOver}
       onDragEnd={handleDragEnd}
     >
       <div className="builder-layout bg-slate-900">
