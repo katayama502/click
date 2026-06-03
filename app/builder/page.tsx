@@ -308,9 +308,9 @@ export default function BuilderPage() {
         <div className="builder-main">
 
           {/* ── Left sidebar ── */}
-          <div className="flex builder-sidebar overflow-hidden">
+          <div className="flex overflow-hidden flex-shrink-0" style={{ width: '336px' }}>
             {/* Icon tab strip */}
-            <div className="w-12 flex flex-col items-center border-r border-slate-700 bg-[#0f172a] flex-shrink-0">
+            <div className="w-16 flex flex-col items-center border-r border-slate-700 bg-[#0f172a] flex-shrink-0">
               {([
                 { id: 'components' as SidebarTab, title: 'コンポーネント',
                   icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M4 5a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1V5zm10 0a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1V5zM4 15a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1v-4zm10 0a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z" /></svg>,
@@ -331,7 +331,7 @@ export default function BuilderPage() {
             </div>
 
             {/* Panel content */}
-            <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+            <div className={cn('flex-1 flex flex-col min-w-0 overflow-hidden', sidebarTab === 'components' ? 'bg-white' : 'bg-[#1e293b]')}>
               {sidebarTab === 'components' && <ElementPalette />}
 
               {sidebarTab === 'pages' && (
