@@ -2,7 +2,7 @@
 
 import { create } from 'zustand';
 import { v4 as uuidv4 } from 'uuid';
-import { AppProject, AppPage, AppElement, DbTable, DbColumn, DbRow, AppDatabase } from './types';
+import { AppProject, AppPage, AppElement, DbTable, DbColumn, DbRow, AppDatabase, PageType } from './types';
 
 const STORAGE_KEY = 'click_builder_v1';
 const MAX_HISTORY = 50;
@@ -71,15 +71,17 @@ interface BuilderStore {
   // Elements
   addElement: (element: AppElement, pageId?: string) => void;
   updateElement: (elementId: string, props: Partial<AppElement['props']>) => void;
+  updateElementRoot: (elementId: string, patch: Partial<Pick<AppElement, 'clickActions' | 'visibilityMode' | 'visibilityConditions'>>) => void;
   removeElement: (elementId: string, pageId?: string) => void;
   selectElement: (elementId: string | null) => void;
   reorderElements: (pageId: string, fromIndex: number, toIndex: number) => void;
 
   // Pages
-  addPage: (name?: string) => void;
+  addPage: (name?: string, pageType?: PageType) => void;
   selectPage: (pageId: string) => void;
   renamePage: (pageId: string, name: string) => void;
   deletePage: (pageId: string) => void;
+  updatePageSettings: (pageId: string, settings: Partial<Pick<AppPage, 'pageType' | 'autoRefresh' | 'backgroundColor'>>) => void;
 
   // Preview
   setPreviewMode: (preview: boolean) => void;
@@ -216,6 +218,28 @@ export const useBuilderStore = create<BuilderStore>((set, get) => ({
     set({ project: updated });
   },
 
+  updateElementRoot: (elementId, patch) => {
+    const state = get();
+    const { project } = state;
+    if (!project) return;
+
+    const updatedPages = project.pages.map((page) => {
+      const updatedElements = page.elements.map((el) => {
+        if (el.id !== elementId) return el;
+        return { ...el, ...patch };
+      });
+      return { ...page, elements: updatedElements };
+    });
+
+    const updated: AppProject = {
+      ...project,
+      pages: updatedPages,
+      updatedAt: new Date().toISOString(),
+    };
+    saveToLocalStorage(updated);
+    set({ project: updated });
+  },
+
   removeElement: (elementId, pageId) => {
     const state = get();
     const { project, selectedPageId, selectedElementId } = state;
@@ -247,7 +271,19 @@ export const useBuilderStore = create<BuilderStore>((set, get) => ({
     set({ selectedElementId: elementId });
   },
 
-  addPage: (name) => {
+  updatePageSettings: (pageId, settings) => {
+    const state = get();
+    const { project } = state;
+    if (!project) return;
+    const updatedPages = project.pages.map((p) =>
+      p.id === pageId ? { ...p, ...settings } : p
+    );
+    const updated: AppProject = { ...project, pages: updatedPages, updatedAt: new Date().toISOString() };
+    saveToLocalStorage(updated);
+    set({ project: updated, ...pushHistory(state, project) });
+  },
+
+  addPage: (name, pageType) => {
     const state = get();
     const { project } = state;
     if (!project) return;
@@ -256,6 +292,7 @@ export const useBuilderStore = create<BuilderStore>((set, get) => ({
       name: name ?? `ページ ${project.pages.length + 1}`,
       elements: [],
       backgroundColor: '#ffffff',
+      pageType: pageType ?? 'normal',
     };
     const updated: AppProject = {
       ...project,

@@ -2,7 +2,12 @@
 
 import { useState } from 'react';
 import { useBuilderStore } from '@/lib/store';
-import { AppElement, ListItem, NavItem, RadioOption, DropdownOption, TableColumn, TableRow, CarouselItem } from '@/lib/types';
+import {
+  AppElement, AppPage, PageType, ListItem, NavItem, RadioOption, DropdownOption,
+  TableColumn, TableRow, CarouselItem,
+  ClickAction, ClickActionType, VisibilityCondition, ConditionOperator,
+  FormField,
+} from '@/lib/types';
 import { v4 as uuidv4 } from 'uuid';
 import { cn } from '@/lib/utils';
 
@@ -190,6 +195,284 @@ function CarouselItemsEditor({ items, onChange }: {
   );
 }
 
+/* ─── Click Flow section (button only) ─── */
+const ACTION_TYPE_LABELS: Record<ClickActionType, string> = {
+  navigate: 'ページ移動',
+  create: 'データ作成',
+  update: 'データ更新',
+  delete: 'データ削除',
+  alert: 'アラート',
+  redirect: 'リダイレクト',
+};
+
+function ClickFlowSection({ element }: { element: AppElement }) {
+  const { updateElementRoot, project } = useBuilderStore();
+  const [open, setOpen] = useState(true);
+  const [addOpen, setAddOpen] = useState(false);
+  const actions = element.clickActions ?? [];
+
+  const setActions = (next: ClickAction[]) =>
+    updateElementRoot(element.id, { clickActions: next });
+
+  const addAction = (type: ClickActionType) => {
+    setActions([...actions, { id: uuidv4(), type }]);
+    setAddOpen(false);
+  };
+
+  const removeAction = (id: string) => setActions(actions.filter((a) => a.id !== id));
+
+  const updateAction = (id: string, patch: Partial<ClickAction>) =>
+    setActions(actions.map((a) => a.id === id ? { ...a, ...patch } : a));
+
+  return (
+    <div className="border-t border-slate-700 pt-3 mt-3">
+      {/* Header */}
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="flex items-center justify-between w-full mb-2 group"
+      >
+        <span className="text-[10px] font-semibold uppercase tracking-widest text-slate-400 group-hover:text-slate-300 transition-colors">
+          クリックフロー
+        </span>
+        <svg
+          className={cn('w-3 h-3 text-slate-500 transition-transform', open ? '' : '-rotate-90')}
+          fill="none" stroke="currentColor" viewBox="0 0 24 24"
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+
+      {open && (
+        <div>
+          {/* Existing actions */}
+          {actions.length > 0 && (
+            <div className="space-y-2 mb-2">
+              {actions.map((action, idx) => (
+                <div key={action.id} className="bg-slate-800 rounded-lg p-2 space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-semibold text-[#1ec8a5] uppercase tracking-wide">
+                      {idx + 1}. {ACTION_TYPE_LABELS[action.type]}
+                    </span>
+                    <button
+                      onClick={() => removeAction(action.id)}
+                      className="text-red-400 hover:text-red-300 text-xs px-1"
+                    >×</button>
+                  </div>
+                  {/* navigate: page select */}
+                  {action.type === 'navigate' && (
+                    <select
+                      value={action.targetPageId ?? ''}
+                      onChange={(e) => updateAction(action.id, { targetPageId: e.target.value || undefined })}
+                      className="prop-input appearance-none w-full text-xs"
+                    >
+                      <option value="">（ページを選択）</option>
+                      {project?.pages.map((page) => (
+                        <option key={page.id} value={page.id}>{page.name}</option>
+                      ))}
+                    </select>
+                  )}
+                  {/* alert: message input */}
+                  {action.type === 'alert' && (
+                    <input
+                      type="text"
+                      value={action.message ?? ''}
+                      onChange={(e) => updateAction(action.id, { message: e.target.value })}
+                      placeholder="メッセージを入力..."
+                      maxLength={200}
+                      className="prop-input w-full text-xs"
+                    />
+                  )}
+                  {/* create / update: table name */}
+                  {(action.type === 'create' || action.type === 'update') && (
+                    <input
+                      type="text"
+                      value={action.tableId ?? ''}
+                      onChange={(e) => updateAction(action.id, { tableId: e.target.value })}
+                      placeholder="テーブルID"
+                      maxLength={100}
+                      className="prop-input w-full text-xs"
+                    />
+                  )}
+                  {/* label (all types) */}
+                  <input
+                    type="text"
+                    value={action.label ?? ''}
+                    onChange={(e) => updateAction(action.id, { label: e.target.value })}
+                    placeholder="アクション名（任意）"
+                    maxLength={80}
+                    className="prop-input w-full text-xs"
+                  />
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Add action dropdown */}
+          <div className="relative">
+            <button
+              onClick={() => setAddOpen((v) => !v)}
+              className="w-full py-1.5 rounded-md text-xs font-medium bg-[#1ec8a5]/10 text-[#1ec8a5] hover:bg-[#1ec8a5]/20 transition-colors border border-[#1ec8a5]/30"
+            >
+              ＋ アクション追加
+            </button>
+            {addOpen && (
+              <div className="absolute z-20 left-0 right-0 top-full mt-1 bg-slate-800 border border-slate-600 rounded-lg shadow-xl overflow-hidden">
+                {(['navigate', 'create', 'update', 'alert'] as ClickActionType[]).map((type) => (
+                  <button
+                    key={type}
+                    onClick={() => addAction(type)}
+                    className="w-full text-left px-3 py-2 text-xs text-slate-300 hover:bg-slate-700 hover:text-white transition-colors"
+                  >
+                    {ACTION_TYPE_LABELS[type]}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ─── Visibility section (all elements) ─── */
+const OPERATOR_LABELS: Record<ConditionOperator, string> = {
+  eq: '＝ 等しい',
+  ne: '≠ 等しくない',
+  gt: '＞ より大きい',
+  lt: '＜ より小さい',
+  contains: '含む',
+};
+
+function VisibilitySection({ element }: { element: AppElement }) {
+  const { updateElementRoot } = useBuilderStore();
+  const [open, setOpen] = useState(false);
+  const mode = element.visibilityMode ?? 'always';
+  const conditions = element.visibilityConditions ?? [];
+
+  const setMode = (m: 'always' | 'conditional') =>
+    updateElementRoot(element.id, { visibilityMode: m });
+
+  const setConditions = (next: VisibilityCondition[]) =>
+    updateElementRoot(element.id, { visibilityConditions: next });
+
+  const addCondition = () =>
+    setConditions([...conditions, { id: uuidv4(), logic: 'AND', field: '', operator: 'eq', value: '' }]);
+
+  const removeCondition = (id: string) =>
+    setConditions(conditions.filter((c) => c.id !== id));
+
+  const updateCondition = (id: string, patch: Partial<VisibilityCondition>) =>
+    setConditions(conditions.map((c) => c.id === id ? { ...c, ...patch } : c));
+
+  return (
+    <div className="border-t border-slate-700 pt-3 mt-3">
+      {/* Header */}
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="flex items-center justify-between w-full mb-2 group"
+      >
+        <span className="text-[10px] font-semibold uppercase tracking-widest text-slate-400 group-hover:text-slate-300 transition-colors">
+          表示設定
+        </span>
+        <svg
+          className={cn('w-3 h-3 text-slate-500 transition-transform', open ? '' : '-rotate-90')}
+          fill="none" stroke="currentColor" viewBox="0 0 24 24"
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+
+      {open && (
+        <div>
+          {/* Mode toggle */}
+          <div className="flex gap-1 mb-3">
+            {(['always', 'conditional'] as const).map((m) => (
+              <button
+                key={m}
+                onClick={() => setMode(m)}
+                className={cn(
+                  'flex-1 py-1.5 rounded text-xs font-medium transition-colors',
+                  mode === m
+                    ? 'bg-[#1ec8a5] text-white'
+                    : 'bg-slate-700 text-slate-400 hover:bg-slate-600'
+                )}
+              >
+                {m === 'always' ? '常に表示' : '条件により表示'}
+              </button>
+            ))}
+          </div>
+
+          {/* Condition builder */}
+          {mode === 'conditional' && (
+            <div>
+              {conditions.length === 0 && (
+                <p className="text-slate-500 text-[10px] text-center py-2 mb-2">
+                  条件がありません。追加してください。
+                </p>
+              )}
+              <div className="space-y-2 mb-2">
+                {conditions.map((cond, idx) => (
+                  <div key={cond.id} className="bg-slate-800 rounded-lg p-2 space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      {idx > 0 && (
+                        <select
+                          value={cond.logic}
+                          onChange={(e) => updateCondition(cond.id, { logic: e.target.value as 'AND' | 'OR' })}
+                          className="prop-input appearance-none text-[10px] py-0.5 w-16"
+                        >
+                          <option value="AND">AND</option>
+                          <option value="OR">OR</option>
+                        </select>
+                      )}
+                      {idx === 0 && <span className="text-[10px] text-slate-500">条件 1</span>}
+                      <button
+                        onClick={() => removeCondition(cond.id)}
+                        className="text-red-400 hover:text-red-300 text-xs px-1 ml-auto"
+                      >×</button>
+                    </div>
+                    <input
+                      type="text"
+                      value={cond.field}
+                      onChange={(e) => updateCondition(cond.id, { field: e.target.value })}
+                      placeholder="フィールド名"
+                      maxLength={80}
+                      className="prop-input w-full text-xs"
+                    />
+                    <select
+                      value={cond.operator}
+                      onChange={(e) => updateCondition(cond.id, { operator: e.target.value as ConditionOperator })}
+                      className="prop-input appearance-none w-full text-xs"
+                    >
+                      {(Object.keys(OPERATOR_LABELS) as ConditionOperator[]).map((op) => (
+                        <option key={op} value={op}>{OPERATOR_LABELS[op]}</option>
+                      ))}
+                    </select>
+                    <input
+                      type="text"
+                      value={cond.value}
+                      onChange={(e) => updateCondition(cond.id, { value: e.target.value })}
+                      placeholder="値"
+                      maxLength={200}
+                      className="prop-input w-full text-xs"
+                    />
+                  </div>
+                ))}
+              </div>
+              <button
+                onClick={addCondition}
+                className="w-full py-1.5 rounded-md text-xs font-medium bg-slate-700 text-slate-300 hover:bg-slate-600 transition-colors border border-slate-600"
+              >
+                ＋ 条件を追加
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ─── Main element properties ─── */
 function ElementProperties({ element }: { element: AppElement }) {
   const { updateElement, project } = useBuilderStore();
@@ -304,6 +587,9 @@ function ElementProperties({ element }: { element: AppElement }) {
           </PRow>
         </>
       )}
+
+      {/* ─ Click Flow (button only) ─ */}
+      {type === 'button' && <ClickFlowSection element={element} />}
 
       {/* ─ Toggle ─ */}
       {type === 'toggle' && (
@@ -494,6 +780,73 @@ function ElementProperties({ element }: { element: AppElement }) {
         />
       )}
 
+      {/* ─ Form ─ */}
+      {type === 'form' && (
+        <>
+          <PSection title="フォーム設定" />
+
+          <PRow label="フォームタイトル">
+            <input className="prop-input" value={props.formTitle ?? ''}
+              onChange={(e) => up({ formTitle: e.target.value })} />
+          </PRow>
+
+          <PRow label="送信ボタン">
+            <input className="prop-input" value={props.formSubmitLabel ?? '送信する'}
+              onChange={(e) => up({ formSubmitLabel: e.target.value })} />
+          </PRow>
+
+          <PRow label="データソース（テーブル）">
+            <select className="prop-input appearance-none" value={props.formTableId ?? ''}
+              onChange={(e) => up({ formTableId: e.target.value })}>
+              <option value="">テーブルを選択...</option>
+              {project?.database?.tables.map((t) => (
+                <option key={t.id} value={t.id}>{t.name}</option>
+              ))}
+            </select>
+          </PRow>
+
+          {props.formTableId && (() => {
+            const table = project?.database?.tables.find((t) => t.id === props.formTableId);
+            if (!table) return null;
+            const formFields: FormField[] = props.formFields ?? [];
+            return (
+              <>
+                <PSection title="フィールド設定" />
+                {table.columns.map((col) => {
+                  const field = formFields.find((f) => f.columnId === col.id);
+                  const isEnabled = !!field;
+                  return (
+                    <div key={col.id} className="flex items-center gap-2 py-1 border-b border-slate-800">
+                      <button
+                        onClick={() => {
+                          if (isEnabled) {
+                            up({ formFields: formFields.filter((f) => f.columnId !== col.id) });
+                          } else {
+                            up({ formFields: [...formFields, { id: uuidv4(), columnId: col.id, label: col.name, required: false }] });
+                          }
+                        }}
+                        className={cn('w-4 h-4 rounded border flex items-center justify-center flex-shrink-0', isEnabled ? 'bg-[#1ec8a5] border-[#1ec8a5]' : 'border-slate-600')}
+                      >
+                        {isEnabled && <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>}
+                      </button>
+                      <span className="text-xs text-slate-300 flex-1 truncate">{col.name}</span>
+                      {isEnabled && (
+                        <button
+                          onClick={() => up({ formFields: formFields.map((f) => f.columnId === col.id ? { ...f, required: !f.required } : f) })}
+                          className={cn('text-[10px] px-1.5 py-0.5 rounded', field?.required ? 'bg-red-500/20 text-red-400' : 'text-slate-600 hover:text-slate-400')}
+                        >
+                          必須
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
+              </>
+            );
+          })()}
+        </>
+      )}
+
       {/* ─ Carousel ─ */}
       {type === 'carousel' && (
         <CarouselItemsEditor items={props.carouselItems ?? []} onChange={(carouselItems) => up({ carouselItems })} />
@@ -552,6 +905,9 @@ function ElementProperties({ element }: { element: AppElement }) {
           <PRow label="角丸"><PInput value={props.borderRadius || ''} onChange={(v) => up({ borderRadius: v })} placeholder="8px, 50%" maxLength={20} /></PRow>
         </>
       )}
+
+      {/* ─ 表示設定 (all elements) ─ */}
+      <VisibilitySection element={element} />
 
       {/* ─ Delete ─ */}
       <div className="mt-5 pt-4 border-t border-slate-800">
@@ -671,6 +1027,62 @@ function TagsEditor({ tags, onChange }: { tags: string[]; onChange: (t: string[]
   );
 }
 
+/* ─── Page settings (no element selected) ─── */
+function PageSettingsPanel({ page }: { page: AppPage }) {
+  const { updatePageSettings, renamePage } = useBuilderStore();
+  const [nameInput, setNameInput] = useState(page.name);
+
+  return (
+    <div className="p-4 space-y-4">
+      <PSection title="ページ設定" />
+
+      {/* Page name */}
+      <PRow label="ページ名">
+        <input
+          className="prop-input"
+          value={nameInput}
+          onChange={(e) => setNameInput(e.target.value)}
+          onBlur={() => { if (nameInput.trim()) renamePage(page.id, nameInput.trim()); }}
+          onKeyDown={(e) => { if (e.key === 'Enter') { if (nameInput.trim()) renamePage(page.id, nameInput.trim()); } }}
+        />
+      </PRow>
+
+      {/* Page type */}
+      <PRow label="ページタイプ">
+        <select
+          className="prop-input appearance-none"
+          value={page.pageType ?? 'normal'}
+          onChange={(e) => updatePageSettings(page.id, { pageType: e.target.value as PageType })}
+        >
+          <option value="normal">通常ページ</option>
+          <option value="modal">モーダル</option>
+        </select>
+      </PRow>
+
+      {/* Background color */}
+      <PColorRow
+        label="背景色"
+        value={page.backgroundColor ?? '#ffffff'}
+        onChange={(v) => updatePageSettings(page.id, { backgroundColor: v })}
+      />
+
+      {/* Auto refresh */}
+      <div className="flex items-center justify-between mb-3">
+        <div>
+          <PLabel>自動更新</PLabel>
+          <p className="text-[10px] text-slate-600">ページを定期的に再読み込み</p>
+        </div>
+        <button
+          onClick={() => updatePageSettings(page.id, { autoRefresh: !page.autoRefresh })}
+          className={cn('relative w-10 h-6 rounded-full transition-colors', page.autoRefresh ? 'bg-[#1ec8a5]' : 'bg-slate-700')}
+        >
+          <div className={cn('absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform', page.autoRefresh && 'translate-x-4')} />
+        </button>
+      </div>
+    </div>
+  );
+}
+
 /* ─── Panel wrapper ─── */
 export default function PropertiesPanel() {
   const { project, selectedElementId, selectedPageId } = useBuilderStore();
@@ -688,6 +1100,8 @@ export default function PropertiesPanel() {
       <div className="flex-1 overflow-y-auto">
         {selectedElement ? (
           <ElementProperties element={selectedElement} />
+        ) : currentPage ? (
+          <PageSettingsPanel page={currentPage} />
         ) : (
           <div className="flex flex-col items-center justify-center h-52 text-center px-4">
             <svg className="w-8 h-8 text-slate-700 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">

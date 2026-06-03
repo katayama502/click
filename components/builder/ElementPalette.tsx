@@ -105,6 +105,21 @@ const SECTIONS: SectionDef[] = [
       { id: 'youtube', type: 'video', label: 'Youtube', icon: <Youtube className="w-6 h-6 text-gray-700" /> },
     ],
   },
+  {
+    label: 'データ連携',
+    items: [
+      {
+        id: 'form',
+        type: 'form',
+        label: 'フォーム',
+        icon: (
+          <svg className="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+          </svg>
+        ),
+      },
+    ],
+  },
 ];
 
 /* ─── Draggable item ─── */
@@ -183,14 +198,26 @@ export default function ElementPalette() {
         </div>
       </div>
 
-      {/* Add page button */}
-      <div className="px-4 pb-4 flex-shrink-0">
+      {/* Add page / modal buttons */}
+      <div className="px-4 pb-3 flex-shrink-0 flex flex-col gap-2">
         <button
           onClick={() => addPage()}
-          className="w-full py-2 bg-gray-100 rounded-full flex items-center justify-center gap-2 text-sm font-medium text-blue-600 hover:bg-gray-200 transition-colors cursor-pointer"
+          className="w-full py-2 rounded-full flex items-center justify-center gap-2 text-sm font-medium text-white transition-all cursor-pointer hover:opacity-90 active:scale-95 shadow-sm"
+          style={{ background: 'linear-gradient(135deg, #1ec8a5 0%, #13a98a 100%)' }}
         >
-          <div className="w-2 h-2 rounded-full bg-blue-500 flex-shrink-0" />
+          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+          </svg>
           ページを追加する
+        </button>
+        <button
+          onClick={() => addPage(undefined, 'modal')}
+          className="w-full py-2 rounded-full flex items-center justify-center gap-2 text-sm font-medium text-purple-600 bg-purple-50 hover:bg-purple-100 transition-all cursor-pointer active:scale-95 border border-purple-200"
+        >
+          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h8m-8 4h6M15 13v8m0 0l-3-3m3 3l3-3" />
+          </svg>
+          モーダルを追加
         </button>
       </div>
 
@@ -204,9 +231,12 @@ export default function ElementPalette() {
         ) : (
           filteredSections.map((section) => (
             <div key={section.label}>
-              <p className="text-sm font-bold text-gray-800 px-4 py-2">
-                {section.label}
-              </p>
+              <div className="flex items-center gap-2 px-4 pt-4 pb-2">
+                <p className="text-[11px] font-bold text-gray-500 uppercase tracking-widest">
+                  {section.label}
+                </p>
+                <div className="flex-1 h-px bg-gray-100" />
+              </div>
               {section.empty ? (
                 <p className="text-xs text-gray-400 px-4 pb-6">{section.emptyNote}</p>
               ) : (

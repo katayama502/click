@@ -12,6 +12,8 @@ const COLUMN_TYPES: { label: string; value: DbColumnType }[] = [
   { label: '日付', value: 'date' },
   { label: 'メール', value: 'email' },
   { label: 'URL', value: 'url' },
+  { label: '画像 (image)', value: 'image' },
+  { label: 'リレーショナル', value: 'relational' },
 ];
 
 const TYPE_ICON: Record<DbColumnType, string> = {
@@ -21,6 +23,8 @@ const TYPE_ICON: Record<DbColumnType, string> = {
   date: '📅',
   email: '@',
   url: '🔗',
+  image: '📷',
+  relational: '🔗',
 };
 
 function ColumnRow({ tableId, column }: { tableId: string; column: DbColumn }) {
@@ -50,42 +54,62 @@ function ColumnRow({ tableId, column }: { tableId: string; column: DbColumn }) {
 }
 
 function AddColumnForm({ tableId, onDone }: { tableId: string; onDone: () => void }) {
-  const { addDbColumn } = useBuilderStore();
+  const { addDbColumn, project } = useBuilderStore();
   const [name, setName] = useState('');
   const [type, setType] = useState<DbColumnType>('text');
+  const [relTableId, setRelTableId] = useState('');
+
+  const tables = project?.database?.tables ?? [];
 
   const handleAdd = () => {
     if (!name.trim()) return;
-    addDbColumn(tableId, { name: name.trim(), type });
+    const col: { name: string; type: DbColumnType; relationalTableId?: string } = { name: name.trim(), type };
+    if (type === 'relational' && relTableId) col.relationalTableId = relTableId;
+    addDbColumn(tableId, col);
     setName('');
     setType('text');
+    setRelTableId('');
     onDone();
   };
 
   return (
-    <div className="flex items-center gap-2 p-3 bg-gray-50 border border-gray-200 rounded-lg mx-3 mb-3">
-      <input
-        autoFocus
-        value={name}
-        onChange={e => setName(e.target.value)}
-        onKeyDown={e => { if (e.key === 'Enter') handleAdd(); if (e.key === 'Escape') onDone(); }}
-        placeholder="列名"
-        maxLength={50}
-        className="flex-1 text-sm px-2 py-1 border border-gray-200 rounded outline-none focus:border-blue-400"
-      />
-      <select
-        value={type}
-        onChange={e => setType(e.target.value as DbColumnType)}
-        className="text-xs px-2 py-1 border border-gray-200 rounded outline-none bg-white"
-      >
-        {COLUMN_TYPES.map(t => (
-          <option key={t.value} value={t.value}>{t.label}</option>
-        ))}
-      </select>
-      <button onClick={handleAdd} className="px-3 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 font-medium">
-        追加
-      </button>
-      <button onClick={onDone} className="text-gray-400 hover:text-gray-600 text-xs">✕</button>
+    <div className="flex flex-col gap-2 p-3 bg-gray-50 border border-gray-200 rounded-lg mx-3 mb-3">
+      <div className="flex items-center gap-2">
+        <input
+          autoFocus
+          value={name}
+          onChange={e => setName(e.target.value)}
+          onKeyDown={e => { if (e.key === 'Enter') handleAdd(); if (e.key === 'Escape') onDone(); }}
+          placeholder="列名"
+          maxLength={50}
+          className="flex-1 text-sm px-2 py-1 border border-gray-200 rounded outline-none focus:border-blue-400"
+        />
+        <select
+          value={type}
+          onChange={e => setType(e.target.value as DbColumnType)}
+          className="text-xs px-2 py-1 border border-gray-200 rounded outline-none bg-white"
+        >
+          {COLUMN_TYPES.map(t => (
+            <option key={t.value} value={t.value}>{t.label}</option>
+          ))}
+        </select>
+        <button onClick={handleAdd} className="px-3 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 font-medium">
+          追加
+        </button>
+        <button onClick={onDone} className="text-gray-400 hover:text-gray-600 text-xs">✕</button>
+      </div>
+      {type === 'relational' && (
+        <select
+          value={relTableId}
+          onChange={e => setRelTableId(e.target.value)}
+          className="text-xs px-2 py-1 border border-gray-200 rounded outline-none bg-white w-full"
+        >
+          <option value="">テーブルを選択...</option>
+          {tables.map(t => (
+            <option key={t.id} value={t.id}>{t.name}</option>
+          ))}
+        </select>
+      )}
     </div>
   );
 }

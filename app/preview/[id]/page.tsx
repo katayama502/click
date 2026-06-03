@@ -8,11 +8,16 @@ import ElementRenderer from '@/components/builder/ElementRenderer';
 
 const STORAGE_KEY = 'click_builder_v1';
 
+function cn(...classes: (string | boolean | undefined | null)[]) {
+  return classes.filter(Boolean).join(' ');
+}
+
 export default function PreviewPage() {
   const params = useParams();
   const router = useRouter();
   const [project, setProject] = useState<AppProject | null>(null);
   const [currentPageId, setCurrentPageId] = useState<string | null>(null);
+  const [modalPageId, setModalPageId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'desktop' | 'mobile'>('desktop');
   const [isPublishing, setIsPublishing] = useState(false);
   const [publishUrl, setPublishUrl] = useState<string | null>(null);
@@ -29,6 +34,20 @@ export default function PreviewPage() {
       // ignore
     }
   }, []);
+
+  // Auto-refresh when current page has autoRefresh enabled
+  const currentPage: AppPage | undefined = project?.pages.find(p => p.id === currentPageId);
+
+  useEffect(() => {
+    if (!currentPage?.autoRefresh) return;
+    const interval = setInterval(() => {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (raw) setProject(JSON.parse(raw));
+      } catch {}
+    }, 30000);
+    return () => clearInterval(interval);
+  }, [currentPage?.autoRefresh, currentPage?.id]);
 
   const handlePublish = async () => {
     if (!project) return;
@@ -63,7 +82,8 @@ export default function PreviewPage() {
     );
   }
 
-  const currentPage: AppPage | undefined = project.pages.find(p => p.id === currentPageId);
+  // Only show non-modal pages in the tab bar
+  const normalPages = project.pages.filter(p => !p.pageType || p.pageType === 'normal');
 
   return (
     <div className="min-h-screen bg-gray-100 flex flex-col">
@@ -148,10 +168,10 @@ export default function PreviewPage() {
         )}
       </div>
 
-      {/* Page tabs */}
-      {project.pages.length > 1 && (
+      {/* Page tabs — only non-modal pages */}
+      {normalPages.length > 1 && (
         <div className="bg-white border-b border-gray-200 flex items-center px-4 gap-2 overflow-x-auto">
-          {project.pages.map((page) => (
+          {normalPages.map((page) => (
             <button
               key={page.id}
               onClick={() => setCurrentPageId(page.id)}
@@ -182,7 +202,10 @@ export default function PreviewPage() {
       {/* Preview area */}
       <div className="flex-1 overflow-auto flex items-start justify-center py-8 px-4">
         <div
-          className="bg-white shadow-xl rounded-lg overflow-hidden transition-all duration-300"
+          className={cn(
+            "bg-white shadow-xl overflow-hidden transition-all duration-300",
+            viewMode === 'mobile' ? "rounded-[2.5rem] border-8 border-gray-800" : "rounded-lg"
+          )}
           style={{
             width: viewMode === 'mobile' ? '390px' : '100%',
             maxWidth: viewMode === 'mobile' ? '390px' : '960px',
@@ -200,7 +223,14 @@ export default function PreviewPage() {
                     key={element.id}
                     element={element}
                     isPreview={true}
-                    onNavigate={(pageId) => setCurrentPageId(pageId)}
+                    onNavigate={(pageId) => {
+                      const targetPage = project?.pages.find(p => p.id === pageId);
+                      if (targetPage?.pageType === 'modal') {
+                        setModalPageId(pageId);
+                      } else {
+                        setCurrentPageId(pageId);
+                      }
+                    }}
                   />
                 ))
               ) : (
@@ -216,6 +246,52 @@ export default function PreviewPage() {
           )}
         </div>
       </div>
+
+      {/* Modal overlay */}
+      {modalPageId && (() => {
+        const modalPage = project?.pages.find(p => p.id === modalPageId);
+        if (!modalPage) return null;
+        return (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-2xl shadow-2xl overflow-hidden w-full max-w-sm">
+              {/* Modal header */}
+              <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+                <h3 className="text-sm font-semibold text-gray-800">{modalPage.name}</h3>
+                <button
+                  onClick={() => setModalPageId(null)}
+                  className="w-7 h-7 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-500"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              {/* Modal content */}
+              <div
+                className="p-4 space-y-3 max-h-[70vh] overflow-y-auto"
+                style={{ backgroundColor: modalPage.backgroundColor || '#fff' }}
+              >
+                {modalPage.elements.map(el => (
+                  <ElementRenderer
+                    key={el.id}
+                    element={el}
+                    isPreview={true}
+                    onNavigate={(pageId) => {
+                      const target = project?.pages.find(p => p.id === pageId);
+                      if (target?.pageType === 'modal') {
+                        setModalPageId(pageId);
+                      } else {
+                        setModalPageId(null);
+                        setCurrentPageId(pageId);
+                      }
+                    }}
+                  />
+                ))}
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }

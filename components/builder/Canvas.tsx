@@ -126,30 +126,79 @@ function SortableEl({
 
 /* ─── Single page card ─── */
 function PageCard({
-  page, index, isSelected, selectedElementId, onSelect, onSelectElement, onClickBg,
+  page, index, isSelected, selectedElementId, pageCount,
+  onSelect, onSelectElement, onClickBg, onDelete, onRename,
 }: {
   page: AppPage; index: number; isSelected: boolean;
-  selectedElementId: string | null;
+  selectedElementId: string | null; pageCount: number;
   onSelect: () => void; onSelectElement: (id: string) => void; onClickBg: () => void;
+  onDelete: () => void; onRename: (name: string) => void;
 }) {
   const { setNodeRef, isOver } = useDroppable({
     id: isSelected ? 'canvas-drop-zone' : `page-prev-${page.id}`,
     data: { isCanvas: true, pageId: page.id },
     disabled: !isSelected,
   });
+  const [hovered, setHovered] = useState(false);
+  const [editingLabel, setEditingLabel] = useState(false);
+  const [labelInput, setLabelInput] = useState(page.name);
+
+  const commitRename = () => {
+    setEditingLabel(false);
+    const trimmed = labelInput.trim();
+    if (trimmed && trimmed !== page.name) onRename(trimmed);
+    else setLabelInput(page.name);
+  };
 
   return (
-    <div style={{ position: 'absolute', left: PAD + index * (CARD_W + CARD_GAP), top: PAD, width: CARD_W }}>
+    <div
+      style={{ position: 'absolute', left: PAD + index * (CARD_W + CARD_GAP), top: PAD, width: CARD_W }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
       {/* Label */}
       <div className="flex items-center gap-1.5 mb-2 h-6">
-        <span className={cn(
-          'text-xs font-medium',
-          isSelected ? 'text-gray-800' : 'text-gray-500'
-        )}>
-          {page.name}
-        </span>
-        {isSelected && (
+        {editingLabel ? (
+          <input
+            autoFocus
+            value={labelInput}
+            onChange={(e) => setLabelInput(e.target.value)}
+            onBlur={commitRename}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') commitRename();
+              if (e.key === 'Escape') { setEditingLabel(false); setLabelInput(page.name); }
+            }}
+            onClick={(e) => e.stopPropagation()}
+            className="text-xs font-medium bg-white border border-blue-400 rounded px-1.5 py-0.5 outline-none text-gray-800 w-36"
+          />
+        ) : (
+          <span
+            className={cn('text-xs font-medium cursor-default select-none', isSelected ? 'text-gray-800' : 'text-gray-500')}
+            title="ダブルクリックでリネーム"
+            onDoubleClick={(e) => { e.stopPropagation(); setEditingLabel(true); setLabelInput(page.name); }}
+          >
+            {page.name}
+          </span>
+        )}
+        {page.pageType === 'modal' && (
+          <span className="text-[10px] bg-purple-100 text-purple-600 px-1.5 py-0.5 rounded font-medium">モーダル</span>
+        )}
+        {isSelected && !editingLabel && (
           <span className="text-[10px] bg-blue-100 text-blue-600 px-1.5 py-0.5 rounded font-medium">編集中</span>
+        )}
+        {hovered && pageCount > 1 && !editingLabel && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              if (confirm(`「${page.name}」を削除しますか？`)) onDelete();
+            }}
+            className="ml-auto w-5 h-5 flex items-center justify-center rounded hover:bg-red-100 text-gray-400 hover:text-red-500 transition-colors"
+            title="ページを削除"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+            </svg>
+          </button>
         )}
       </div>
 
@@ -227,7 +276,7 @@ interface CanvasProps {
 export default function Canvas({ viewMode: _viewMode }: CanvasProps) {
   const {
     project, selectedPageId, selectedElementId,
-    selectElement, removeElement, selectPage, addPage,
+    selectElement, removeElement, selectPage, addPage, deletePage, renamePage,
   } = useBuilderStore();
 
   const [zoom, setZoom] = useState(0.75);
@@ -276,8 +325,8 @@ export default function Canvas({ viewMode: _viewMode }: CanvasProps) {
   };
   const onMouseUp = () => setPanning(false);
 
-  /* Canvas dimensions */
-  const contentW = PAD * 2 + pages.length * (CARD_W + CARD_GAP);
+  /* Canvas dimensions — extra slot for the add-page placeholder card */
+  const contentW = PAD * 2 + (pages.length + 1) * (CARD_W + CARD_GAP);
   const contentH = PAD * 2 + LABEL_H + CARD_H + 60;
 
   return (
@@ -322,11 +371,38 @@ export default function Canvas({ viewMode: _viewMode }: CanvasProps) {
             index={i}
             isSelected={selectedPageId === page.id}
             selectedElementId={selectedElementId}
+            pageCount={pages.length}
             onSelect={() => { selectPage(page.id); selectElement(null); }}
             onSelectElement={selectElement}
             onClickBg={() => selectElement(null)}
+            onDelete={() => deletePage(page.id)}
+            onRename={(name) => renamePage(page.id, name)}
           />
         ))}
+
+        {/* Add page placeholder card — after the last page */}
+        <div
+          style={{
+            position: 'absolute',
+            left: PAD + pages.length * (CARD_W + CARD_GAP),
+            top: PAD,
+            width: CARD_W,
+          }}
+        >
+          <div className="h-6 mb-2" /> {/* Label height spacer */}
+          <button
+            onClick={() => addPage()}
+            className="w-full rounded-xl border-2 border-dashed border-gray-300 hover:border-blue-400 hover:bg-blue-50/50 transition-all group flex flex-col items-center justify-center gap-3 cursor-pointer"
+            style={{ height: CARD_H }}
+          >
+            <div className="w-10 h-10 rounded-full border-2 border-dashed border-gray-300 group-hover:border-blue-400 flex items-center justify-center transition-colors">
+              <svg className="w-5 h-5 text-gray-300 group-hover:text-blue-400 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+            </div>
+            <span className="text-xs font-medium text-gray-400 group-hover:text-blue-500 transition-colors">ページを追加</span>
+          </button>
+        </div>
       </div>
 
       {/* ── Bottom toolbar ── */}
@@ -365,16 +441,6 @@ export default function Canvas({ viewMode: _viewMode }: CanvasProps) {
         </span>
       </div>
 
-      {/* ── Add page (top-right overlay) ── */}
-      <button
-        onClick={() => addPage()}
-        className="absolute top-3 right-3 flex items-center gap-1.5 text-xs font-medium text-blue-600 bg-white hover:bg-blue-50 border border-blue-200 px-3 py-1.5 rounded-lg shadow-sm transition-colors z-10"
-      >
-        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-        </svg>
-        ページを追加
-      </button>
     </div>
   );
 }

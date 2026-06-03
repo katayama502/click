@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { AppElement } from '@/lib/types';
+import { AppElement, ClickAction } from '@/lib/types';
 import { cn } from '@/lib/utils';
 
 interface ElementRendererProps {
@@ -347,6 +347,70 @@ function StatusBadge({ value }: { value: string }) {
   return <>{value}</>;
 }
 
+/* ─────────────── Form Sub-Component ─────────────── */
+
+function FormElement({ el, isPreview }: { el: AppElement; isPreview?: boolean }) {
+  const { formTitle, formSubmitLabel = '送信する', formFields = [] } = el.props;
+  const [values, setValues] = useState<Record<string, string>>({});
+  const [submitted, setSubmitted] = useState(false);
+
+  if (submitted) {
+    return (
+      <div className="rounded-xl border border-green-200 bg-green-50 p-6 text-center">
+        <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3">
+          <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+          </svg>
+        </div>
+        <p className="text-sm font-semibold text-green-700">送信完了しました！</p>
+        <button
+          onClick={() => { setSubmitted(false); setValues({}); }}
+          className="mt-3 text-xs text-green-600 underline"
+        >
+          もう一度送信
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-xl border border-gray-200 bg-white overflow-hidden shadow-sm">
+      {formTitle && (
+        <div className="px-4 py-3 border-b border-gray-100 bg-gray-50">
+          <h3 className="text-sm font-semibold text-gray-800">{formTitle}</h3>
+        </div>
+      )}
+      <div className="p-4 space-y-3">
+        {formFields.length === 0 ? (
+          <div className="text-xs text-gray-400 text-center py-4">フィールドを設定してください</div>
+        ) : (
+          formFields.map((field) => (
+            <div key={field.id}>
+              <label className="block text-xs font-medium text-gray-700 mb-1">
+                {field.label}{field.required && <span className="text-red-500 ml-1">*</span>}
+              </label>
+              <input
+                type="text"
+                placeholder={field.label}
+                value={isPreview ? (values[field.id] ?? '') : ''}
+                onChange={isPreview ? (e) => setValues(v => ({ ...v, [field.id]: e.target.value })) : undefined}
+                readOnly={!isPreview}
+                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg outline-none focus:border-blue-400"
+              />
+            </div>
+          ))
+        )}
+        <button
+          onClick={isPreview ? () => setSubmitted(true) : undefined}
+          className="w-full py-2.5 bg-[#1ec8a5] text-white text-sm font-medium rounded-lg mt-2 hover:bg-[#17b394] transition-colors"
+        >
+          {formSubmitLabel}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 /* ─────────────── Main ElementRenderer ─────────────── */
 
 export default function ElementRenderer({
@@ -539,7 +603,28 @@ export default function ElementRenderer({
       const safeHref =
         props.href && isSafeUrl(props.href) ? props.href : undefined;
 
-      if (isPreview && safeHref) {
+      const handleButtonClick = (e: React.MouseEvent) => {
+        e.preventDefault();
+        // Legacy page link (takes priority)
+        if (props.pageLinkId && onNavigate) {
+          onNavigate(props.pageLinkId);
+          return;
+        }
+        // New Click Flow actions
+        if (element.clickActions && element.clickActions.length > 0 && isPreview) {
+          element.clickActions.forEach((action: ClickAction) => {
+            if (action.type === 'navigate' || action.type === 'redirect') {
+              if (action.targetPageId && onNavigate) onNavigate(action.targetPageId);
+            } else if (action.type === 'alert') {
+              alert(action.message || 'アクションが実行されました');
+            }
+          });
+          return;
+        }
+        if (safeHref) window.open(safeHref, '_blank');
+      };
+
+      if (isPreview && safeHref && !props.pageLinkId && !(element.clickActions && element.clickActions.length > 0)) {
         return (
           <a
             href={safeHref}
@@ -551,12 +636,6 @@ export default function ElementRenderer({
               variantClasses[variant],
               sizeClasses[size]
             )}
-            onClick={(e) => {
-              if ((props as any).pageLinkId && onNavigate) {
-                e.preventDefault();
-                onNavigate((props as any).pageLinkId);
-              }
-            }}
           >
             {props.text || 'ボタン'}
           </a>
@@ -570,12 +649,7 @@ export default function ElementRenderer({
             variantClasses[variant],
             sizeClasses[size]
           )}
-          onClick={(e) => {
-            e.preventDefault();
-            if (isPreview && (props as any).pageLinkId && onNavigate) {
-              onNavigate((props as any).pageLinkId);
-            }
-          }}
+          onClick={handleButtonClick}
         >
           {props.text || 'ボタン'}
         </button>
@@ -1210,6 +1284,10 @@ export default function ElementRenderer({
         </div>
       );
     }
+
+    /* ─────────────── フォーム (DB連携) ─────────────── */
+    case 'form':
+      return <FormElement el={element} isPreview={isPreview} />;
 
     default:
       return (

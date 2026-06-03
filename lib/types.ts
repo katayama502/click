@@ -22,6 +22,7 @@ export type ElementType =
   | 'fileupload'
   | 'stepper'
   | 'rating'
+  | 'form'
   // データ表示
   | 'card'
   | 'list'
@@ -77,9 +78,47 @@ export interface CarouselItem {
   caption?: string;
 }
 
+// ─── Click Flow (Action) types ───────────────────────────────────
+export type ClickActionType =
+  | 'navigate'   // ページ移動
+  | 'create'     // データ作成
+  | 'update'     // データ更新
+  | 'delete'     // データ削除
+  | 'alert'      // アラート表示
+  | 'redirect';  // リダイレクト
+
+export interface ClickAction {
+  id: string;
+  type: ClickActionType;
+  label?: string;
+  // navigate / redirect
+  targetPageId?: string;
+  // DB operations
+  tableId?: string;
+  // alert
+  message?: string;
+}
+
+// ─── Visibility condition ───────────────────────────────────────
+export type VisibilityMode = 'always' | 'conditional';
+export type ConditionOperator = 'eq' | 'ne' | 'gt' | 'lt' | 'contains';
+
+export interface VisibilityCondition {
+  id: string;
+  logic: 'AND' | 'OR';
+  field: string;
+  operator: ConditionOperator;
+  value: string;
+}
+
 export interface AppElement {
   id: string;
   type: ElementType;
+  // Click Flow
+  clickActions?: ClickAction[];
+  // 表示設定
+  visibilityMode?: VisibilityMode;
+  visibilityConditions?: VisibilityCondition[];
   props: {
     // テキスト / 見出し / ボタン / カード
     text?: string;
@@ -163,25 +202,42 @@ export interface AppElement {
     dividerStyle?: 'solid' | 'dashed' | 'dotted';
     // ナビの追加フィールド
     navActiveIndex?: number;
+    // フォームウィジェット (form type)
+    formTitle?: string;
+    formTableId?: string;
+    formFields?: FormField[];
+    formSubmitLabel?: string;
     // コンテナ子要素
     children?: AppElement[];
   };
 }
+
+export interface FormField {
+  id: string;
+  columnId: string;
+  label: string;
+  required?: boolean;
+}
+
+export type PageType = 'normal' | 'modal';
 
 export interface AppPage {
   id: string;
   name: string;
   elements: AppElement[];
   backgroundColor?: string;
+  pageType?: PageType;     // 'normal' | 'modal'
+  autoRefresh?: boolean;   // ページ自動更新
 }
 
 // ─── Database types ───────────────────────────────────
-export type DbColumnType = 'text' | 'number' | 'boolean' | 'date' | 'email' | 'url';
+export type DbColumnType = 'text' | 'number' | 'boolean' | 'date' | 'email' | 'url' | 'image' | 'relational';
 
 export interface DbColumn {
   id: string;
   name: string;
   type: DbColumnType;
+  relationalTableId?: string; // for relational type
 }
 
 export interface DbRow {

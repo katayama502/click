@@ -98,6 +98,7 @@ function createDefaultElement(type: ElementType): AppElement {
       }};
     case 'qrcode':     return { id, type, props: { label: 'QRコード', qrValue: 'https://example.com' } };
     case 'container':  return { id, type, props: { children: [] } };
+    case 'form':       return { id, type, props: { formTitle: '登録フォーム', formSubmitLabel: '送信する', formFields: [] } };
     default:           return { id, type, props: {} };
   }
 }
@@ -118,7 +119,7 @@ function TabIcon({ active, children }: { active: boolean; children: React.ReactN
 export default function BuilderPage() {
   const router = useRouter();
   const {
-    project, selectedPageId, initProject,
+    project, selectedPageId, selectedElementId, initProject,
     addElement, reorderElements, addPage, selectPage,
     renamePage, deletePage, undo, redo, canUndo, canRedo, updateProjectName,
   } = useBuilderStore();
@@ -147,10 +148,19 @@ export default function BuilderPage() {
       if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) return;
       if (mod && e.key === 'z' && !e.shiftKey) { e.preventDefault(); undo(); }
       else if (mod && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) { e.preventDefault(); redo(); }
+      else if (mod && e.key === 'd' && selectedElementId && project) {
+        e.preventDefault();
+        const page = project.pages.find(p => p.id === selectedPageId);
+        const el = page?.elements.find(el => el.id === selectedElementId);
+        if (el) {
+          const cloned = { ...el, id: uuidv4(), props: { ...el.props } };
+          addElement(cloned, selectedPageId ?? undefined);
+        }
+      }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [undo, redo]);
+  }, [undo, redo, selectedElementId, selectedPageId, project, addElement]);
 
   const sensors = useSensors(
     useSensor(MouseSensor, { activationConstraint: { distance: 5 } }),
@@ -264,16 +274,22 @@ export default function BuilderPage() {
           </div>
 
           {/* Undo / Redo */}
-          <div className="flex items-center gap-0.5 border-l border-slate-700 pl-2">
+          <div className="flex items-center gap-1 border-l border-slate-700 pl-2">
             {[
-              { fn: undo, disabled: !undoable, title: 'Undo (Ctrl+Z)', path: 'M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6' },
-              { fn: redo, disabled: !redoable, title: 'Redo (Ctrl+Y)', path: 'M21 10H11a8 8 0 00-8 8v2m18-10l-6 6m6-6l-6-6' },
-            ].map(({ fn, disabled, title, path }) => (
+              { fn: undo, disabled: !undoable, title: 'Undo (Cmd+Z)', path: 'M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6', label: '↩' },
+              { fn: redo, disabled: !redoable, title: 'Redo (Cmd+Y)', path: 'M21 10H11a8 8 0 00-8 8v2m18-10l-6 6m6-6l-6-6', label: '↪' },
+            ].map(({ fn, disabled, title, path, label }) => (
               <button key={title} onClick={fn} disabled={disabled} title={title}
-                className="p-1.5 rounded text-slate-500 hover:text-slate-300 hover:bg-slate-800 disabled:opacity-25 disabled:cursor-not-allowed transition-colors">
+                className={cn(
+                  'flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium transition-all',
+                  disabled
+                    ? 'text-slate-700 cursor-not-allowed'
+                    : 'text-slate-300 hover:text-white hover:bg-slate-700 border border-transparent hover:border-slate-600 active:scale-95'
+                )}>
                 <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={path} />
                 </svg>
+                <span className="hidden sm:inline">{label}</span>
               </button>
             ))}
           </div>
@@ -323,14 +339,15 @@ export default function BuilderPage() {
           {/* Actions */}
           <div className="flex items-center gap-2">
             <button onClick={() => project && window.open(`/preview/${project.id}`, '_blank')}
-              className="flex items-center gap-1.5 text-xs font-medium text-slate-400 hover:text-white bg-slate-800 hover:bg-slate-700 px-3 py-1.5 rounded-lg transition-colors">
+              className="flex items-center gap-1.5 text-xs font-medium text-slate-300 hover:text-white bg-slate-700 hover:bg-slate-600 border border-slate-600 hover:border-slate-500 px-3 py-1.5 rounded-lg transition-all active:scale-95">
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0zM2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
               </svg>
               プレビュー
             </button>
             <button onClick={handlePublish} disabled={isPublishing}
-              className="flex items-center gap-1.5 text-xs font-bold text-white bg-[#1ec8a5] hover:bg-[#13a98a] disabled:opacity-70 px-4 py-1.5 rounded-lg transition-colors">
+              className="flex items-center gap-1.5 text-xs font-bold text-white disabled:opacity-70 px-4 py-1.5 rounded-lg transition-all active:scale-95 shadow-md hover:shadow-lg"
+              style={{ background: isPublishing ? '#13a98a' : 'linear-gradient(135deg, #1ec8a5 0%, #13a98a 50%, #0e8a72 100%)', boxShadow: '0 2px 8px rgba(30,200,165,0.4)' }}>
               {isPublishing ? (
                 <><div className="w-3 h-3 border border-white border-t-transparent rounded-full animate-spin" />公開中...</>
               ) : (
@@ -392,26 +409,41 @@ export default function BuilderPage() {
                             }}
                             className="w-full bg-slate-700 text-slate-200 text-xs px-3 py-2 rounded-lg border border-[#1ec8a5] outline-none" />
                         ) : (
-                          <button onClick={() => selectPage(page.id)}
-                            onDoubleClick={() => { setEditingPageId(page.id); setPageNameInput(page.name); }}
-                            title="ダブルクリックでリネーム"
-                            className={cn('w-full text-left px-3 py-2 rounded-lg text-xs transition-colors flex items-center gap-2',
-                              selectedPageId === page.id
-                                ? 'bg-[#1ec8a5]/15 text-[#1ec8a5] border border-[#1ec8a5]/20'
-                                : 'text-slate-400 hover:bg-slate-700 hover:text-slate-200')}>
-                            <svg className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                            </svg>
-                            <span className="flex-1 truncate">{page.name}</span>
+                          <div className={cn('w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs transition-colors group/page',
+                            selectedPageId === page.id
+                              ? 'bg-[#1ec8a5]/15 text-[#1ec8a5] border border-[#1ec8a5]/20'
+                              : 'text-slate-400 hover:bg-slate-700 hover:text-slate-200')}>
+                            <button onClick={() => selectPage(page.id)}
+                              onDoubleClick={() => { setEditingPageId(page.id); setPageNameInput(page.name); }}
+                              title="ダブルクリックでリネーム"
+                              className="flex-1 text-left flex items-center gap-2 min-w-0">
+                              <svg className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                              </svg>
+                              <span className="flex-1 truncate">{page.name}</span>
+                              {page.pageType === 'modal' && (
+                                <span className="text-[9px] font-bold bg-purple-500/20 text-purple-400 px-1 py-0.5 rounded leading-none shrink-0">M</span>
+                              )}
+                            </button>
+                            {/* Settings gear icon — shows on hover */}
+                            <button
+                              onClick={(e) => { e.stopPropagation(); selectPage(page.id); setSidebarTab('theme'); }}
+                              title="ページ設定"
+                              className="opacity-0 group-hover/page:opacity-100 transition-opacity text-slate-500 hover:text-slate-300 shrink-0">
+                              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                              </svg>
+                            </button>
                             {hoveredPageId === page.id && project.pages.length > 1 && (
                               <button onClick={(e) => { e.stopPropagation(); if (confirm(`「${page.name}」を削除しますか？`)) deletePage(page.id); }}
-                                className="text-slate-600 hover:text-red-400 transition-colors">
+                                className="text-slate-600 hover:text-red-400 transition-colors shrink-0">
                                 <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                                 </svg>
                               </button>
                             )}
-                          </button>
+                          </div>
                         )}
                       </div>
                     ))}
@@ -421,6 +453,13 @@ export default function BuilderPage() {
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                       </svg>
                       ページを追加
+                    </button>
+                    <button onClick={() => addPage(undefined, 'modal')}
+                      className="w-full text-left px-3 py-2 rounded-lg text-xs text-purple-400 hover:text-purple-300 hover:bg-slate-700 transition-colors flex items-center gap-2">
+                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h8m-8 4h6M15 13v8m0 0l-3-3m3 3l3-3" />
+                      </svg>
+                      モーダルを追加
                     </button>
                   </div>
                 </div>
