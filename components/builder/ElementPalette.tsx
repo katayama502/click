@@ -4,7 +4,7 @@ import { useState, useMemo } from 'react';
 import { useDraggable } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
 import {
-  Search, Plus, Type, Square, Minus, Smile, Image, Video,
+  Search, Type, Square, Minus, Smile, Image, Video,
   MousePointerClick, PlusCircle, ToggleLeft, CheckSquare,
   PanelTop, PanelBottom, LayoutList, TextCursor, Lock,
   CalendarDays, Paperclip, Camera, ScanBarcode, ClipboardList,
@@ -161,40 +161,41 @@ export default function ElementPalette() {
   return (
     <div className="flex flex-col h-full bg-white">
       {/* Search bar */}
-      <div className="p-4">
-        <div className="relative flex items-center">
-          <Search className="absolute left-3 w-4 h-4 text-gray-400 pointer-events-none" />
+      <div className="p-4 flex-shrink-0">
+        <div className="relative">
           <input
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="検索"
-            className="w-full py-2 px-4 pl-9 bg-gray-100 rounded-full text-sm placeholder:text-gray-400 outline-none"
+            className="w-full py-2 pl-4 pr-10 bg-gray-100 rounded-full text-sm placeholder:text-gray-400 outline-none focus:bg-gray-200 transition-colors"
           />
-          {query && (
+          {query ? (
             <button
               onClick={() => setQuery('')}
-              className="absolute right-3 text-gray-400 hover:text-gray-600"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
             >
               <X className="w-4 h-4" />
             </button>
+          ) : (
+            <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
           )}
         </div>
       </div>
 
       {/* Add page button */}
-      <div className="px-4 pb-4">
+      <div className="px-4 pb-4 flex-shrink-0">
         <button
           onClick={() => addPage()}
           className="w-full py-2 bg-gray-100 rounded-full flex items-center justify-center gap-2 text-sm font-medium text-blue-600 hover:bg-gray-200 transition-colors cursor-pointer"
         >
-          <Plus className="w-4 h-4" />
+          <div className="w-2 h-2 rounded-full bg-blue-500 flex-shrink-0" />
           ページを追加する
         </button>
       </div>
 
       {/* Items */}
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto min-h-0">
         {!hasResults ? (
           <div className="flex flex-col items-center justify-center py-10 text-gray-400">
             <Search className="w-8 h-8 mb-2 opacity-40" />
@@ -219,6 +220,54 @@ export default function ElementPalette() {
           ))
         )}
       </div>
+
+      {/* Bottom: Tutorial + Manual */}
+      {!query && (
+        <div className="mt-auto border-t border-gray-100 flex-shrink-0">
+          {/* YouTube tutorial thumbnail */}
+          <a
+            href="https://www.youtube.com/results?search_query=Click+ノーコード+アプリ"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="block mx-3 mt-3 mb-2 rounded-xl overflow-hidden relative group cursor-pointer"
+          >
+            <div className="aspect-video bg-gradient-to-br from-gray-800 to-gray-900 flex items-center justify-center relative">
+              {/* YouTube-style thumbnail */}
+              <div className="absolute inset-0 bg-black opacity-20" />
+              <div className="relative z-10 text-center px-3">
+                <div className="w-12 h-12 bg-red-600 rounded-full flex items-center justify-center mx-auto mb-2 group-hover:bg-red-500 transition-colors shadow-lg">
+                  <svg className="w-5 h-5 text-white ml-1" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M8 5v14l11-7z" />
+                  </svg>
+                </div>
+                <p className="text-white text-xs font-semibold leading-tight drop-shadow">
+                  【最新版】超基礎！<br />
+                  ノーコードアプリ開発C...
+                </p>
+              </div>
+              {/* Click logo badge */}
+              <div className="absolute top-2 left-2 bg-white rounded px-1.5 py-0.5 text-xs font-bold text-[#1ec8a5]">
+                Click
+              </div>
+            </div>
+          </a>
+
+          {/* Manual link */}
+          <a
+            href="https://click.dev"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-2 px-4 py-2.5 hover:bg-gray-50 transition-colors group"
+          >
+            <svg className="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+            </svg>
+            <span className="text-xs font-medium text-gray-600 group-hover:text-gray-900 transition-colors">
+              マニュアルはこちら
+            </span>
+          </a>
+        </div>
+      )}
     </div>
   );
 }

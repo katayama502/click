@@ -18,7 +18,8 @@ import DatabasePanel from '@/components/builder/DatabasePanel';
 import { cn } from '@/lib/utils';
 
 type ViewMode = 'desktop' | 'tablet' | 'mobile';
-type SidebarTab = 'components' | 'pages' | 'theme' | 'database';
+type SidebarTab = 'components' | 'pages' | 'theme';
+type MainMode = 'canvas' | 'database';
 
 /* ─── Default element factory ─── */
 function createDefaultElement(type: ElementType): AppElement {
@@ -123,6 +124,7 @@ export default function BuilderPage() {
   } = useBuilderStore();
 
   const [viewMode, setViewMode] = useState<ViewMode>('mobile');
+  const [mainMode, setMainMode] = useState<MainMode>('canvas');
   const [activeDragType, setActiveDragType] = useState<ElementType | null>(null);
   const [sidebarTab, setSidebarTab] = useState<SidebarTab>('components');
   const [editingName, setEditingName] = useState(false);
@@ -252,6 +254,15 @@ export default function BuilderPage() {
             </button>
           )}
 
+          <div className="flex items-center gap-1 border-l border-slate-700 pl-2 ml-1">
+            <button className="text-xs text-slate-400 hover:text-slate-200 border border-slate-600 hover:border-slate-400 px-2 py-1 rounded transition-colors">
+              設定
+            </button>
+            <button className="text-xs text-slate-400 hover:text-slate-200 border border-slate-600 hover:border-slate-400 px-2 py-1 rounded transition-colors">
+              管理画面
+            </button>
+          </div>
+
           {/* Undo / Redo */}
           <div className="flex items-center gap-0.5 border-l border-slate-700 pl-2">
             {[
@@ -267,8 +278,34 @@ export default function BuilderPage() {
             ))}
           </div>
 
+          {/* Center: Canvas/Database mode switch */}
+          <div className="flex items-center bg-slate-800 rounded-lg p-0.5 mx-auto">
+            <button
+              onClick={() => setMainMode('canvas')}
+              className={cn(
+                'px-4 py-1.5 rounded-md text-xs font-semibold transition-colors',
+                mainMode === 'canvas'
+                  ? 'bg-white text-gray-900 shadow-sm'
+                  : 'text-slate-400 hover:text-slate-200'
+              )}
+            >
+              キャンバス
+            </button>
+            <button
+              onClick={() => setMainMode('database')}
+              className={cn(
+                'px-4 py-1.5 rounded-md text-xs font-semibold transition-colors',
+                mainMode === 'database'
+                  ? 'bg-white text-gray-900 shadow-sm'
+                  : 'text-slate-400 hover:text-slate-200'
+              )}
+            >
+              データベース
+            </button>
+          </div>
+
           {/* View mode */}
-          <div className="flex items-center bg-slate-800 rounded-lg p-0.5 gap-0.5 mx-auto">
+          <div className="flex items-center bg-slate-800 rounded-lg p-0.5 gap-0.5">
             {([
               { mode: 'mobile'  as ViewMode, w: '375', label: 'モバイル',   path: 'M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z' },
               { mode: 'tablet'  as ViewMode, w: '768', label: 'タブレット', path: 'M12 18h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z' },
@@ -322,11 +359,6 @@ export default function BuilderPage() {
                 { id: 'theme' as SidebarTab, title: 'テーマ',
                   icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" /></svg>,
                 },
-                { id: 'database' as SidebarTab, title: 'データベース',
-                  icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582 4 8 4s8 1.79 8 4" />
-                  </svg>,
-                },
               ]).map(({ id, title, icon }) => (
                 <button key={id} onClick={() => setSidebarTab(id)} title={title}
                   className={cn('w-full flex items-center justify-center py-3 transition-colors border-l-2',
@@ -337,7 +369,7 @@ export default function BuilderPage() {
             </div>
 
             {/* Panel content */}
-            <div className={cn('flex-1 flex flex-col min-w-0 overflow-hidden', sidebarTab === 'components' || sidebarTab === 'database' ? 'bg-white' : 'bg-[#1e293b]')}>
+            <div className={cn('flex-1 flex flex-col min-w-0 overflow-hidden', sidebarTab === 'components' ? 'bg-white' : 'bg-[#1e293b]')}>
               {sidebarTab === 'components' && <ElementPalette />}
 
               {sidebarTab === 'pages' && (
@@ -394,8 +426,6 @@ export default function BuilderPage() {
                 </div>
               )}
 
-              {sidebarTab === 'database' && <DatabasePanel />}
-
               {sidebarTab === 'theme' && (
                 <div className="flex flex-col h-full">
                   <div className="p-3 border-b border-slate-700">
@@ -439,11 +469,19 @@ export default function BuilderPage() {
             </div>
           </div>
 
-          {/* ── Canvas ── */}
-          <Canvas viewMode={viewMode} />
+          {mainMode === 'canvas' ? (
+            <>
+              {/* ── Canvas ── */}
+              <Canvas viewMode={viewMode} />
 
-          {/* ── Properties ── */}
-          <PropertiesPanel />
+              {/* ── Properties ── */}
+              <PropertiesPanel />
+            </>
+          ) : (
+            <div className="flex-1 overflow-hidden">
+              <DatabasePanel />
+            </div>
+          )}
         </div>
       </div>
 
