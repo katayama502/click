@@ -99,6 +99,8 @@ export interface AppElement {
     videoUrl?: string;
     // ボタンリンク
     href?: string;
+    // ページ遷移リンク（ボタン押下でページ移動）
+    pageLinkId?: string;
     variant?: 'primary' | 'secondary' | 'outline' | 'ghost';
     size?: 'sm' | 'md' | 'lg';
     // シェイプ
@@ -173,6 +175,32 @@ export interface AppPage {
   backgroundColor?: string;
 }
 
+// ─── Database types ───────────────────────────────────
+export type DbColumnType = 'text' | 'number' | 'boolean' | 'date' | 'email' | 'url';
+
+export interface DbColumn {
+  id: string;
+  name: string;
+  type: DbColumnType;
+}
+
+export interface DbRow {
+  id: string;
+  cells: Record<string, string>; // columnId → value
+}
+
+export interface DbTable {
+  id: string;
+  name: string;
+  columns: DbColumn[];
+  rows: DbRow[];
+  createdAt: string;
+}
+
+export interface AppDatabase {
+  tables: DbTable[];
+}
+
 export interface AppProject {
   id: string;
   name: string;
@@ -182,4 +210,5 @@ export interface AppProject {
   updatedAt: string;
   publishedId?: string;
   thumbnail?: string;
+  database?: AppDatabase;
 }

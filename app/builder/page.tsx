@@ -14,10 +14,11 @@ import ElementPalette from '@/components/builder/ElementPalette';
 import Canvas from '@/components/builder/Canvas';
 import PropertiesPanel from '@/components/builder/PropertiesPanel';
 import ElementRenderer from '@/components/builder/ElementRenderer';
+import DatabasePanel from '@/components/builder/DatabasePanel';
 import { cn } from '@/lib/utils';
 
 type ViewMode = 'desktop' | 'tablet' | 'mobile';
-type SidebarTab = 'components' | 'pages' | 'theme';
+type SidebarTab = 'components' | 'pages' | 'theme' | 'database';
 
 /* ─── Default element factory ─── */
 function createDefaultElement(type: ElementType): AppElement {
@@ -321,6 +322,11 @@ export default function BuilderPage() {
                 { id: 'theme' as SidebarTab, title: 'テーマ',
                   icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" /></svg>,
                 },
+                { id: 'database' as SidebarTab, title: 'データベース',
+                  icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582 4 8 4s8 1.79 8 4" />
+                  </svg>,
+                },
               ]).map(({ id, title, icon }) => (
                 <button key={id} onClick={() => setSidebarTab(id)} title={title}
                   className={cn('w-full flex items-center justify-center py-3 transition-colors border-l-2',
@@ -331,7 +337,7 @@ export default function BuilderPage() {
             </div>
 
             {/* Panel content */}
-            <div className={cn('flex-1 flex flex-col min-w-0 overflow-hidden', sidebarTab === 'components' ? 'bg-white' : 'bg-[#1e293b]')}>
+            <div className={cn('flex-1 flex flex-col min-w-0 overflow-hidden', sidebarTab === 'components' || sidebarTab === 'database' ? 'bg-white' : 'bg-[#1e293b]')}>
               {sidebarTab === 'components' && <ElementPalette />}
 
               {sidebarTab === 'pages' && (
@@ -387,6 +393,8 @@ export default function BuilderPage() {
                   </div>
                 </div>
               )}
+
+              {sidebarTab === 'database' && <DatabasePanel />}
 
               {sidebarTab === 'theme' && (
                 <div className="flex flex-col h-full">

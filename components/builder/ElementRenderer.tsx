@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils';
 interface ElementRendererProps {
   element: AppElement;
   isPreview?: boolean;
+  onNavigate?: (pageId: string) => void;
 }
 
 /** Validate https?:// URLs only (XSS prevention) */
@@ -351,6 +352,7 @@ function StatusBadge({ value }: { value: string }) {
 export default function ElementRenderer({
   element,
   isPreview = false,
+  onNavigate,
 }: ElementRendererProps) {
   const { type, props } = element;
 
@@ -549,6 +551,12 @@ export default function ElementRenderer({
               variantClasses[variant],
               sizeClasses[size]
             )}
+            onClick={(e) => {
+              if ((props as any).pageLinkId && onNavigate) {
+                e.preventDefault();
+                onNavigate((props as any).pageLinkId);
+              }
+            }}
           >
             {props.text || 'ボタン'}
           </a>
@@ -562,7 +570,12 @@ export default function ElementRenderer({
             variantClasses[variant],
             sizeClasses[size]
           )}
-          onClick={(e) => e.preventDefault()}
+          onClick={(e) => {
+            e.preventDefault();
+            if (isPreview && (props as any).pageLinkId && onNavigate) {
+              onNavigate((props as any).pageLinkId);
+            }
+          }}
         >
           {props.text || 'ボタン'}
         </button>

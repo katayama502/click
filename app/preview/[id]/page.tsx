@@ -6,13 +6,13 @@ import { AppProject, AppPage } from '@/lib/types';
 import { publishApp } from '@/lib/api';
 import ElementRenderer from '@/components/builder/ElementRenderer';
 
-const STORAGE_KEY = 'click_builder_project';
+const STORAGE_KEY = 'click_builder_v1';
 
 export default function PreviewPage() {
   const params = useParams();
   const router = useRouter();
   const [project, setProject] = useState<AppProject | null>(null);
-  const [currentPageIndex, setCurrentPageIndex] = useState(0);
+  const [currentPageId, setCurrentPageId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'desktop' | 'mobile'>('desktop');
   const [isPublishing, setIsPublishing] = useState(false);
   const [publishUrl, setPublishUrl] = useState<string | null>(null);
@@ -23,6 +23,7 @@ export default function PreviewPage() {
       if (raw) {
         const parsed = JSON.parse(raw) as AppProject;
         setProject(parsed);
+        setCurrentPageId(parsed.pages[0]?.id ?? null);
       }
     } catch {
       // ignore
@@ -62,7 +63,7 @@ export default function PreviewPage() {
     );
   }
 
-  const currentPage: AppPage | undefined = project.pages[currentPageIndex];
+  const currentPage: AppPage | undefined = project.pages.find(p => p.id === currentPageId);
 
   return (
     <div className="min-h-screen bg-gray-100 flex flex-col">
@@ -150,12 +151,12 @@ export default function PreviewPage() {
       {/* Page tabs */}
       {project.pages.length > 1 && (
         <div className="bg-white border-b border-gray-200 flex items-center px-4 gap-2 overflow-x-auto">
-          {project.pages.map((page, i) => (
+          {project.pages.map((page) => (
             <button
               key={page.id}
-              onClick={() => setCurrentPageIndex(i)}
+              onClick={() => setCurrentPageId(page.id)}
               className={`text-sm py-2 px-3 border-b-2 transition-colors whitespace-nowrap ${
-                i === currentPageIndex
+                page.id === currentPageId
                   ? 'border-blue-600 text-blue-600 font-medium'
                   : 'border-transparent text-gray-500 hover:text-gray-700'
               }`}
@@ -163,6 +164,18 @@ export default function PreviewPage() {
               {page.name}
             </button>
           ))}
+        </div>
+      )}
+
+      {/* Back to first page button */}
+      {currentPageId !== project?.pages[0]?.id && (
+        <div className="bg-white border-b border-gray-100 flex items-center px-4 py-1.5">
+          <button
+            onClick={() => project && setCurrentPageId(project.pages[0].id)}
+            className="text-sm text-gray-500 hover:text-gray-700 flex items-center gap-1 transition-colors"
+          >
+            ← 最初のページへ
+          </button>
         </div>
       )}
 
@@ -183,7 +196,12 @@ export default function PreviewPage() {
             >
               {currentPage.elements.length > 0 ? (
                 currentPage.elements.map((element) => (
-                  <ElementRenderer key={element.id} element={element} isPreview={true} />
+                  <ElementRenderer
+                    key={element.id}
+                    element={element}
+                    isPreview={true}
+                    onNavigate={(pageId) => setCurrentPageId(pageId)}
+                  />
                 ))
               ) : (
                 <div className="flex items-center justify-center h-64 text-gray-400 text-sm">

@@ -84,7 +84,7 @@ const VIEW_WIDTHS = {
 };
 
 export default function Canvas({ viewMode }: CanvasProps) {
-  const { project, selectedPageId, selectedElementId, selectElement, removeElement } =
+  const { project, selectedPageId, selectedElementId, selectElement, removeElement, selectPage, addPage } =
     useBuilderStore();
 
   const currentPage = project?.pages.find((p) => p.id === selectedPageId);
@@ -108,7 +108,33 @@ export default function Canvas({ viewMode }: CanvasProps) {
   const canvasWidth = VIEW_WIDTHS[viewMode];
 
   return (
-    <div className="builder-canvas-area" tabIndex={0} onKeyDown={handleKeyDown}>
+    <div className="builder-canvas-area flex flex-col" tabIndex={0} onKeyDown={handleKeyDown}>
+      {/* Page tabs */}
+      <div className="flex items-center border-b border-gray-200 bg-white px-4 overflow-x-auto flex-shrink-0">
+        {project?.pages.map((page) => (
+          <button
+            key={page.id}
+            onClick={() => selectPage(page.id)}
+            className={`py-2 px-4 text-sm border-b-2 whitespace-nowrap transition-colors ${
+              selectedPageId === page.id
+                ? 'border-[#1ec8a5] text-[#1ec8a5] font-medium'
+                : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            {page.name}
+          </button>
+        ))}
+        <button
+          onClick={() => addPage()}
+          className="py-2 px-3 text-sm text-gray-400 hover:text-blue-600 transition-colors flex items-center gap-1 whitespace-nowrap"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+          </svg>
+          追加
+        </button>
+      </div>
+
       <div
         style={{
           width: canvasWidth,

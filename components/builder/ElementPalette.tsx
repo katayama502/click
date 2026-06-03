@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { ElementType } from '@/lib/types';
 import { cn } from '@/lib/utils';
+import { useBuilderStore } from '@/lib/store';
 
 /* ─── Item definition ─── */
 interface PaletteItemDef {
@@ -137,6 +138,7 @@ function DraggableItem({ item }: { item: PaletteItemDef }) {
 /* ─── Main export ─── */
 export default function ElementPalette() {
   const [query, setQuery] = useState('');
+  const { addPage } = useBuilderStore();
 
   const filteredSections = useMemo(() => {
     const q = query.toLowerCase().trim();
@@ -183,7 +185,7 @@ export default function ElementPalette() {
       {/* Add page button */}
       <div className="px-4 pb-4">
         <button
-          onClick={() => {}}
+          onClick={() => addPage()}
           className="w-full py-2 bg-gray-100 rounded-full flex items-center justify-center gap-2 text-sm font-medium text-blue-600 hover:bg-gray-200 transition-colors cursor-pointer"
         >
           <Plus className="w-4 h-4" />

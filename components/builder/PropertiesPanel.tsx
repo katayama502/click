@@ -192,7 +192,7 @@ function CarouselItemsEditor({ items, onChange }: {
 
 /* ─── Main element properties ─── */
 function ElementProperties({ element }: { element: AppElement }) {
-  const { updateElement } = useBuilderStore();
+  const { updateElement, project } = useBuilderStore();
   const { type, props } = element;
   const up = (p: Partial<AppElement['props']>) => updateElement(element.id, p);
 
@@ -284,6 +284,23 @@ function ElementProperties({ element }: { element: AppElement }) {
           <PRow label="リンクURL (https://)">
             <PInput value={props.href || ''} onChange={(v) => { if (isSafeUrl(v)) up({ href: v }); }} placeholder="https://example.com" maxLength={2048} />
             {props.href && !isSafeUrl(props.href) && <p className="text-red-400 text-xs mt-1">⚠ https:// で始めてください</p>}
+          </PRow>
+          <PRow label="ページ遷移先">
+            <select
+              value={(props as any).pageLinkId || ''}
+              onChange={(e) => up({ pageLinkId: e.target.value || undefined } as any)}
+              className="prop-input appearance-none"
+            >
+              <option value="">（遷移なし）</option>
+              {project?.pages.map((page) => (
+                <option key={page.id} value={page.id}>{page.name}</option>
+              ))}
+            </select>
+            {(props as any).pageLinkId && (
+              <p className="text-[#1ec8a5] text-xs mt-1">
+                → {project?.pages.find(p => p.id === (props as any).pageLinkId)?.name ?? '不明なページ'}
+              </p>
+            )}
           </PRow>
         </>
       )}

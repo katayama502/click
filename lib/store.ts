@@ -2,7 +2,7 @@
 
 import { create } from 'zustand';
 import { v4 as uuidv4 } from 'uuid';
-import { AppProject, AppPage, AppElement } from './types';
+import { AppProject, AppPage, AppElement, DbTable, DbColumn, DbRow, AppDatabase } from './types';
 
 const STORAGE_KEY = 'click_builder_v1';
 const MAX_HISTORY = 50;
@@ -23,6 +23,7 @@ export function createDefaultProject(): AppProject {
     ],
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
+    database: { tables: [] },
   };
 }
 
@@ -82,6 +83,16 @@ interface BuilderStore {
 
   // Preview
   setPreviewMode: (preview: boolean) => void;
+
+  // Database
+  addDbTable: (name: string) => void;
+  deleteDbTable: (tableId: string) => void;
+  renameDbTable: (tableId: string, name: string) => void;
+  addDbColumn: (tableId: string, column: Omit<DbColumn, 'id'>) => void;
+  deleteDbColumn: (tableId: string, columnId: string) => void;
+  addDbRow: (tableId: string) => void;
+  updateDbRow: (tableId: string, rowId: string, columnId: string, value: string) => void;
+  deleteDbRow: (tableId: string, rowId: string) => void;
 }
 
 function pushHistory(state: BuilderStore, project: AppProject): Partial<BuilderStore> {
@@ -300,6 +311,155 @@ export const useBuilderStore = create<BuilderStore>((set, get) => ({
 
   setPreviewMode: (preview) => {
     set({ isPreviewMode: preview });
+  },
+
+  addDbTable: (name) => {
+    const state = get();
+    if (!state.project) return;
+    const newTable: DbTable = {
+      id: uuidv4(),
+      name,
+      columns: [{ id: uuidv4(), name: 'ID', type: 'text' }],
+      rows: [],
+      createdAt: new Date().toISOString(),
+    };
+    const updated = {
+      ...state.project,
+      database: { tables: [...(state.project.database?.tables ?? []), newTable] },
+      updatedAt: new Date().toISOString(),
+    };
+    saveToLocalStorage(updated);
+    set({ project: updated });
+  },
+
+  deleteDbTable: (tableId) => {
+    const state = get();
+    if (!state.project) return;
+    const updated = {
+      ...state.project,
+      database: { tables: (state.project.database?.tables ?? []).filter(t => t.id !== tableId) },
+      updatedAt: new Date().toISOString(),
+    };
+    saveToLocalStorage(updated);
+    set({ project: updated });
+  },
+
+  renameDbTable: (tableId, name) => {
+    const state = get();
+    if (!state.project) return;
+    const updated = {
+      ...state.project,
+      database: {
+        tables: (state.project.database?.tables ?? []).map(t =>
+          t.id === tableId ? { ...t, name } : t
+        ),
+      },
+      updatedAt: new Date().toISOString(),
+    };
+    saveToLocalStorage(updated);
+    set({ project: updated });
+  },
+
+  addDbColumn: (tableId, column) => {
+    const state = get();
+    if (!state.project) return;
+    const newCol: DbColumn = { id: uuidv4(), ...column };
+    const updated = {
+      ...state.project,
+      database: {
+        tables: (state.project.database?.tables ?? []).map(t =>
+          t.id === tableId ? { ...t, columns: [...t.columns, newCol] } : t
+        ),
+      },
+      updatedAt: new Date().toISOString(),
+    };
+    saveToLocalStorage(updated);
+    set({ project: updated });
+  },
+
+  deleteDbColumn: (tableId, columnId) => {
+    const state = get();
+    if (!state.project) return;
+    const updated = {
+      ...state.project,
+      database: {
+        tables: (state.project.database?.tables ?? []).map(t => {
+          if (t.id !== tableId) return t;
+          return {
+            ...t,
+            columns: t.columns.filter(c => c.id !== columnId),
+            rows: t.rows.map(r => {
+              const cells = { ...r.cells };
+              delete cells[columnId];
+              return { ...r, cells };
+            }),
+          };
+        }),
+      },
+      updatedAt: new Date().toISOString(),
+    };
+    saveToLocalStorage(updated);
+    set({ project: updated });
+  },
+
+  addDbRow: (tableId) => {
+    const state = get();
+    if (!state.project) return;
+    const table = (state.project.database?.tables ?? []).find(t => t.id === tableId);
+    if (!table) return;
+    const newRow: DbRow = {
+      id: uuidv4(),
+      cells: Object.fromEntries(table.columns.map(c => [c.id, ''])),
+    };
+    const updated = {
+      ...state.project,
+      database: {
+        tables: (state.project.database?.tables ?? []).map(t =>
+          t.id === tableId ? { ...t, rows: [...t.rows, newRow] } : t
+        ),
+      },
+      updatedAt: new Date().toISOString(),
+    };
+    saveToLocalStorage(updated);
+    set({ project: updated });
+  },
+
+  updateDbRow: (tableId, rowId, columnId, value) => {
+    const state = get();
+    if (!state.project) return;
+    const updated = {
+      ...state.project,
+      database: {
+        tables: (state.project.database?.tables ?? []).map(t => {
+          if (t.id !== tableId) return t;
+          return {
+            ...t,
+            rows: t.rows.map(r =>
+              r.id === rowId ? { ...r, cells: { ...r.cells, [columnId]: value } } : r
+            ),
+          };
+        }),
+      },
+      updatedAt: new Date().toISOString(),
+    };
+    saveToLocalStorage(updated);
+    set({ project: updated });
+  },
+
+  deleteDbRow: (tableId, rowId) => {
+    const state = get();
+    if (!state.project) return;
+    const updated = {
+      ...state.project,
+      database: {
+        tables: (state.project.database?.tables ?? []).map(t =>
+          t.id === tableId ? { ...t, rows: t.rows.filter(r => r.id !== rowId) } : t
+        ),
+      },
+      updatedAt: new Date().toISOString(),
+    };
+    saveToLocalStorage(updated);
+    set({ project: updated });
   },
 
   reorderElements: (pageId, fromIndex, toIndex) => {
