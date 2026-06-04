@@ -143,13 +143,14 @@ function ElementContent({ element }: { element: Element }) {
 
     case 'line':
       return (
-        <div
-          className="w-full"
-          style={{
-            borderTop: `${s.borderWidth ?? 1}px solid ${s.borderColor ?? '#d1d5db'}`,
-            marginTop: '50%',
-          }}
-        />
+        <div className="w-full h-full flex items-center">
+          <div
+            className="w-full"
+            style={{
+              borderTop: `${s.borderWidth ?? 1}px solid ${s.borderColor ?? '#d1d5db'}`,
+            }}
+          />
+        </div>
       );
 
     case 'header':
@@ -780,8 +781,8 @@ export default function CanvasElement({
     [element, isSelected, onSelect, onUpdate, s.x, s.y, scale],
   );
 
-  const width = typeof s.width === 'number' ? s.width : s.width ?? 'auto';
-  const height = typeof s.height === 'number' ? s.height : s.height ?? 'auto';
+  const width = s.width ?? 'auto';
+  const height = s.height ?? 'auto';
 
   const posStyle: React.CSSProperties = {
     position: 'absolute',
