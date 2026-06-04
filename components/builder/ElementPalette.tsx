@@ -5,12 +5,13 @@ import { useDraggable } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
 import {
   Search, Type, Square, Minus, Smile, Image, Video,
-  MousePointerClick, PlusCircle, ToggleLeft, CheckSquare,
-  PanelTop, PanelBottom, LayoutList, TextCursor, Lock,
-  CalendarDays, Paperclip, Camera, ScanBarcode, ClipboardList,
-  PlusSquare, FileText, CreditCard, Sliders, Rows3, Tags,
-  UserCircle, GalleryHorizontal, Layers, Calendar, ChevronDown,
-  Barcode, QrCode, Table2, Youtube, X,
+  MousePointerClick, ToggleLeft, CheckSquare,
+  PanelTop, PanelBottom, ClipboardList, TextCursor, Lock,
+  CalendarDays, Paperclip, Camera, ListChecks, ScanBarcode,
+  List, Rows3, Tags, Users, GalleryHorizontal, Layers,
+  Calendar, Table2, ChevronDown, Barcode,
+  CreditCard, DollarSign, BarChart2, Youtube, Star,
+  Clock, X,
 } from 'lucide-react';
 import { ElementType } from '@/lib/types';
 import { cn } from '@/lib/utils';
@@ -22,102 +23,111 @@ interface PaletteItemDef {
   type: ElementType;
   label: string;
   icon: React.ReactNode;
+  /** overrides the label passed to the drag data */
+  dragLabel?: string;
+}
+
+interface ComingSoonItemDef {
+  id: string;
+  label: string;
+  icon: React.ReactNode;
+  comingSoon: true;
+}
+
+type AnyItemDef = PaletteItemDef | ComingSoonItemDef;
+
+function isComingSoon(item: AnyItemDef): item is ComingSoonItemDef {
+  return (item as ComingSoonItemDef).comingSoon === true;
 }
 
 /* ─── Section definition ─── */
 interface SectionDef {
   label: string;
-  items: PaletteItemDef[];
-  empty?: boolean;
-  emptyNote?: string;
+  items: AnyItemDef[];
 }
+
+const IC = 'w-6 h-6 text-gray-700';
 
 /* ─── Sections and items ─── */
 const SECTIONS: SectionDef[] = [
   {
     label: 'ベーシック',
     items: [
-      { id: 'text',        type: 'text',        label: 'テキスト',  icon: <Type className="w-6 h-6 text-gray-700" /> },
-      { id: 'shape',       type: 'shape',       label: 'シェイプ',  icon: <Square className="w-6 h-6 text-gray-700" /> },
-      { id: 'divider',     type: 'divider',     label: '線',        icon: <Minus className="w-6 h-6 text-gray-700" /> },
-      { id: 'iconbutton',  type: 'iconbutton',  label: 'アイコン',  icon: <Smile className="w-6 h-6 text-gray-700" /> },
-      { id: 'image',       type: 'image',       label: '画像',      icon: <Image className="w-6 h-6 text-gray-700" /> },
-      { id: 'video',       type: 'video',       label: '動画',      icon: <Video className="w-6 h-6 text-gray-700" /> },
+      { id: 'text',       type: 'text',       label: 'テキスト',        icon: <Type className={IC} /> },
+      { id: 'shape',      type: 'shape',      label: 'シェイプ',        icon: <Square className={IC} /> },
+      { id: 'divider',    type: 'divider',    label: '線',              icon: <Minus className={IC} /> },
+      { id: 'iconbutton', type: 'iconbutton', label: 'アイコン',        icon: <Smile className={IC} /> },
+      { id: 'image',      type: 'image',      label: '画像',            icon: <Image className={IC} /> },
+      { id: 'video',      type: 'video',      label: '動画（ショート動画）', icon: <Video className={IC} /> },
     ],
   },
   {
     label: 'アクション',
     items: [
-      { id: 'button-primary', type: 'button',     label: 'ボタン',      icon: <MousePointerClick className="w-6 h-6 text-gray-700" /> },
-      { id: 'iconbutton-2',   type: 'iconbutton', label: 'アイコンBtn', icon: <PlusCircle className="w-6 h-6 text-gray-700" /> },
-      { id: 'toggle',         type: 'toggle',     label: 'スイッチ',    icon: <ToggleLeft className="w-6 h-6 text-gray-700" /> },
-      { id: 'check',          type: 'check',      label: 'トグル',      icon: <CheckSquare className="w-6 h-6 text-gray-700" /> },
+      { id: 'button-1', type: 'button', label: 'ボタン1', dragLabel: 'ボタン1', icon: <MousePointerClick className={IC} /> },
+      { id: 'button-2', type: 'button', label: 'ボタン2', dragLabel: 'ボタン2', icon: <MousePointerClick className={IC} /> },
+      { id: 'toggle',   type: 'toggle', label: 'スイッチ', icon: <ToggleLeft className={IC} /> },
+      { id: 'check',    type: 'check',  label: 'トグル',   icon: <CheckSquare className={IC} /> },
     ],
   },
   {
     label: 'ナビゲーション',
     items: [
-      { id: 'nav-top',    type: 'nav', label: 'トップナビ',   icon: <PanelTop className="w-6 h-6 text-gray-700" /> },
-      { id: 'nav-bottom', type: 'nav', label: 'ボトムナビ',   icon: <PanelBottom className="w-6 h-6 text-gray-700" /> },
+      { id: 'nav-top',    type: 'nav', label: 'トップ（ヘッダー）', dragLabel: 'トップナビ',   icon: <PanelTop className={IC} /> },
+      { id: 'nav-bottom', type: 'nav', label: 'ボトム（タブバー）', dragLabel: 'ボトムナビ',   icon: <PanelBottom className={IC} /> },
     ],
-  },
-  {
-    label: 'データベース',
-    items: [],
-    empty: true,
-    emptyNote: '近日公開',
   },
   {
     label: 'インプット',
     items: [
-      { id: 'form-input',  type: 'input',      label: 'フォーム',       icon: <LayoutList className="w-6 h-6 text-gray-700" /> },
-      { id: 'text-input',  type: 'textarea',   label: 'インプット',     icon: <TextCursor className="w-6 h-6 text-gray-700" /> },
-      { id: 'password',    type: 'password',   label: 'パスワード',     icon: <Lock className="w-6 h-6 text-gray-700" /> },
-      { id: 'date',        type: 'date',        label: '日付インプット', icon: <CalendarDays className="w-6 h-6 text-gray-700" /> },
-      { id: 'file-input',  type: 'fileupload', label: 'ファイルインプット', icon: <Paperclip className="w-6 h-6 text-gray-700" /> },
-      { id: 'image-input', type: 'image',      label: '画像インプット', icon: <Camera className="w-6 h-6 text-gray-700" /> },
-      { id: 'qr-reader',   type: 'qrcode',     label: 'コード読取',     icon: <ScanBarcode className="w-6 h-6 text-gray-700" /> },
-      { id: 'survey',      type: 'radio',       label: 'アンケート',     icon: <ClipboardList className="w-6 h-6 text-gray-700" /> },
-      { id: 'stepper',     type: 'stepper',    label: '数量変更',       icon: <PlusSquare className="w-6 h-6 text-gray-700" /> },
+      { id: 'form',        type: 'form',       label: 'フォーム',          icon: <ClipboardList className={IC} /> },
+      { id: 'input',       type: 'input',      label: 'インプット',        icon: <TextCursor className={IC} /> },
+      { id: 'password',    type: 'password',   label: 'パスワード',        icon: <Lock className={IC} /> },
+      { id: 'date',        type: 'date',       label: '日付インプット',    icon: <CalendarDays className={IC} /> },
+      { id: 'fileupload',  type: 'fileupload', label: 'ファイルインプット', icon: <Paperclip className={IC} /> },
+      { id: 'image-input', type: 'image',      label: '画像インプット',    icon: <Camera className={IC} />, dragLabel: '画像インプット' },
+      { id: 'radio',       type: 'radio',      label: 'アンケート',        icon: <ListChecks className={IC} /> },
+      { id: 'qr-reader',   type: 'qrcode',     label: 'コード読み取り',    icon: <ScanBarcode className={IC} />, dragLabel: 'コード読み取り' },
     ],
   },
   {
     label: 'アウトプット',
     items: [
-      { id: 'basic-card',       type: 'card',      label: 'ベーシック',       icon: <FileText className="w-6 h-6 text-gray-700" /> },
-      { id: 'card-output',      type: 'card',      label: 'カード',           icon: <CreditCard className="w-6 h-6 text-gray-700" /> },
-      { id: 'custom-container', type: 'container', label: 'カスタム',         icon: <Sliders className="w-6 h-6 text-gray-700" /> },
-      { id: 'h-list',           type: 'list',      label: '水平リスト',       icon: <Rows3 className="w-6 h-6 text-gray-700" /> },
-      { id: 'tag-list',         type: 'tag',       label: 'タグリスト',       icon: <Tags className="w-6 h-6 text-gray-700" /> },
-      { id: 'avatar',           type: 'avatar',    label: 'アバター',         icon: <UserCircle className="w-6 h-6 text-gray-700" /> },
-      { id: 'carousel-output',  type: 'carousel',  label: 'カルーセル',       icon: <GalleryHorizontal className="w-6 h-6 text-gray-700" /> },
-      { id: 'stack-carousel',   type: 'carousel',  label: 'スタックカルーセル', icon: <Layers className="w-6 h-6 text-gray-700" /> },
-      { id: 'calendar-output',  type: 'date',      label: 'カレンダー',       icon: <Calendar className="w-6 h-6 text-gray-700" /> },
-      { id: 'dropdown',         type: 'dropdown',  label: 'ドロップダウン',   icon: <ChevronDown className="w-6 h-6 text-gray-700" /> },
-      { id: 'barcode-gen',      type: 'qrcode',    label: 'バーコード生成',   icon: <Barcode className="w-6 h-6 text-gray-700" /> },
-      { id: 'qr-gen',           type: 'qrcode',    label: 'QRコード生成',     icon: <QrCode className="w-6 h-6 text-gray-700" /> },
-      { id: 'table',            type: 'table',     label: 'テーブル',         icon: <Table2 className="w-6 h-6 text-gray-700" /> },
+      { id: 'list',           type: 'list',     label: 'リスト',                icon: <List className={IC} /> },
+      { id: 'h-list',         type: 'list',     label: '水平リスト',            icon: <Rows3 className={IC} />,              dragLabel: '水平リスト' },
+      { id: 'tag',            type: 'tag',      label: 'タグリスト',            icon: <Tags className={IC} /> },
+      { id: 'avatar',         type: 'avatar',   label: 'アバターリスト',        icon: <Users className={IC} /> },
+      { id: 'carousel',       type: 'carousel', label: 'カルーセル',            icon: <GalleryHorizontal className={IC} /> },
+      { id: 'stack-carousel', type: 'carousel', label: 'スタックカルーセル',    icon: <Layers className={IC} />,             dragLabel: 'スタックカルーセル' },
+      { id: 'calendar',       type: 'date',     label: 'カレンダー',            icon: <Calendar className={IC} />,          dragLabel: 'カレンダー' },
+      { id: 'table',          type: 'table',    label: 'テーブル',              icon: <Table2 className={IC} /> },
+      { id: 'dropdown',       type: 'dropdown', label: 'ドロップダウン',        icon: <ChevronDown className={IC} /> },
+      { id: 'search-el',      type: 'input',    label: '検索エレメント',        icon: <Search className={IC} />,            dragLabel: '検索エレメント' },
+      { id: 'barcode-gen',    type: 'qrcode',   label: 'バーコード生成・コード読み取り', icon: <Barcode className={IC} />,   dragLabel: 'バーコード生成' },
+    ],
+  },
+  {
+    label: 'マネタイズ',
+    items: [
+      { id: 'click-pay',    label: 'Click Pay',    icon: <CreditCard className={IC} />,  comingSoon: true },
+      { id: 'jpyc',         label: 'JPYC',         icon: <DollarSign className={IC} />,  comingSoon: true },
+      { id: 'google-admob', label: 'GoogleAdMob',  icon: <BarChart2 className={IC} />,   comingSoon: true },
     ],
   },
   {
     label: '外部連携',
     items: [
-      { id: 'youtube', type: 'video', label: 'Youtube', icon: <Youtube className="w-6 h-6 text-gray-700" /> },
-    ],
-  },
-  {
-    label: 'データ連携',
-    items: [
-      {
-        id: 'form',
-        type: 'form',
-        label: 'フォーム',
-        icon: (
-          <svg className="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-          </svg>
-        ),
-      },
+      { id: 'line',            label: 'LINEアカウント連携',    icon: <Smile className={IC} />,       comingSoon: true },
+      { id: 'youtube',         type: 'video',  label: 'YouTube',               icon: <Youtube className={IC} />,     dragLabel: 'YouTube' },
+      { id: 'vimeo',           label: 'Vimeo',                 icon: <Video className={IC} />,       comingSoon: true },
+      { id: 'timer',           label: 'タイマーエレメント',    icon: <Clock className={IC} />,       comingSoon: true },
+      { id: 'chat',            label: 'チャット',              icon: <Square className={IC} />,      comingSoon: true },
+      { id: 'map',             label: 'Map',                   icon: <Square className={IC} />,      comingSoon: true },
+      { id: 'stamp',           label: 'デジタルスタンプ機能',  icon: <Square className={IC} />,      comingSoon: true },
+      { id: 'rating',          type: 'rating', label: '星評価エレメント',      icon: <Star className={IC} /> },
+      { id: 'webview',         label: 'ウェブビュー',          icon: <Square className={IC} />,      comingSoon: true },
+      { id: 'lottie',          label: 'Lottie',                icon: <Layers className={IC} />,      comingSoon: true },
+      { id: 'ai-chatbot',      label: 'AIチャットボットエレメント', icon: <Square className={IC} />, comingSoon: true },
     ],
   },
 ];
@@ -126,7 +136,7 @@ const SECTIONS: SectionDef[] = [
 function DraggableItem({ item }: { item: PaletteItemDef }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: `palette-${item.id}`,
-    data: { type: item.type, isPalette: true },
+    data: { type: item.type, label: item.dragLabel ?? item.label, isPalette: true },
   });
 
   return (
@@ -143,9 +153,32 @@ function DraggableItem({ item }: { item: PaletteItemDef }) {
       title={item.label}
     >
       {item.icon}
-      <span className="text-[11px] text-gray-500 mt-2 text-center leading-tight line-clamp-2">
+      <span className="text-[10px] text-gray-500 mt-1.5 text-center leading-tight line-clamp-2">
         {item.label}
       </span>
+    </div>
+  );
+}
+
+/* ─── Coming soon item (not draggable) ─── */
+function ComingSoonItem({ item }: { item: ComingSoonItemDef }) {
+  return (
+    <div
+      className="aspect-square border border-gray-100 rounded-xl bg-gray-50 flex flex-col items-center justify-center p-2 cursor-not-allowed select-none relative opacity-50"
+      title={`${item.label}（近日公開）`}
+    >
+      {/* dim overlay */}
+      <div className="absolute inset-0 rounded-xl" />
+      <div className="relative flex flex-col items-center justify-center gap-0">
+        <div className="opacity-40">{item.icon}</div>
+        <span className="text-[10px] text-gray-400 mt-1.5 text-center leading-tight line-clamp-2">
+          {item.label}
+        </span>
+        {/* lock badge */}
+        <span className="absolute -top-1 -right-1 bg-gray-300 text-white text-[8px] font-bold rounded px-0.5 leading-tight">
+          近日
+        </span>
+      </div>
     </div>
   );
 }
@@ -159,10 +192,6 @@ export default function ElementPalette() {
     const q = query.toLowerCase().trim();
     if (!q) return SECTIONS;
     return SECTIONS.map((section) => {
-      if (section.empty) {
-        // データベース section: always show when no query, hide when querying
-        return null;
-      }
       const matchedItems = section.items.filter((item) =>
         item.label.toLowerCase().includes(q)
       );
@@ -232,20 +261,20 @@ export default function ElementPalette() {
           filteredSections.map((section) => (
             <div key={section.label}>
               <div className="flex items-center gap-2 px-4 pt-4 pb-2">
-                <p className="text-[11px] font-bold text-gray-500 uppercase tracking-widest">
+                <p className="text-[11px] font-bold text-gray-500 uppercase tracking-widest whitespace-nowrap">
                   {section.label}
                 </p>
                 <div className="flex-1 h-px bg-gray-100" />
               </div>
-              {section.empty ? (
-                <p className="text-xs text-gray-400 px-4 pb-6">{section.emptyNote}</p>
-              ) : (
-                <div className="grid grid-cols-3 gap-2 px-4 pb-6">
-                  {section.items.map((item) => (
+              <div className="grid grid-cols-3 gap-2 px-4 pb-6">
+                {section.items.map((item) =>
+                  isComingSoon(item) ? (
+                    <ComingSoonItem key={item.id} item={item} />
+                  ) : (
                     <DraggableItem key={item.id} item={item} />
-                  ))}
-                </div>
-              )}
+                  )
+                )}
+              </div>
             </div>
           ))
         )}
@@ -262,7 +291,6 @@ export default function ElementPalette() {
             className="block mx-3 mt-3 mb-2 rounded-xl overflow-hidden relative group cursor-pointer"
           >
             <div className="aspect-video bg-gradient-to-br from-gray-800 to-gray-900 flex items-center justify-center relative">
-              {/* YouTube-style thumbnail */}
               <div className="absolute inset-0 bg-black opacity-20" />
               <div className="relative z-10 text-center px-3">
                 <div className="w-12 h-12 bg-red-600 rounded-full flex items-center justify-center mx-auto mb-2 group-hover:bg-red-500 transition-colors shadow-lg">
@@ -275,7 +303,6 @@ export default function ElementPalette() {
                   ノーコードアプリ開発C...
                 </p>
               </div>
-              {/* Click logo badge */}
               <div className="absolute top-2 left-2 bg-white rounded px-1.5 py-0.5 text-xs font-bold text-[#1ec8a5]">
                 Click
               </div>

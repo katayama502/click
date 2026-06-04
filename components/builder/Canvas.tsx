@@ -12,11 +12,25 @@ import { cn } from '@/lib/utils';
 /* ─── Layout constants ─── */
 const CARD_W = 320;
 const CARD_H = 580;
-const CARD_STATUS_H = 0;  // no status bar
-const CARD_CONTENT_H = CARD_H; // full height for content
+const CARD_STATUS_H = 0;
+const CARD_CONTENT_H = CARD_H;
 const CARD_GAP = 110;
 const PAD = 56;
 const LABEL_H = 26;
+
+/* ─── Zoom step constants ─── */
+const ZOOM_STEPS = [0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0];
+const ZOOM_DEFAULT = 1.0;
+
+function snapZoom(z: number, direction: 'in' | 'out'): number {
+  if (direction === 'in') {
+    const next = ZOOM_STEPS.find((s) => s > z + 0.001);
+    return next ?? ZOOM_STEPS[ZOOM_STEPS.length - 1];
+  } else {
+    const prev = [...ZOOM_STEPS].reverse().find((s) => s < z - 0.001);
+    return prev ?? ZOOM_STEPS[0];
+  }
+}
 
 /* ─── Element height estimator (for arrow y-pos) ─── */
 function elHeight(type: string): number {
@@ -39,7 +53,7 @@ function elHeight(type: string): number {
 interface Conn {
   srcIdx: number;
   dstIdx: number;
-  srcY: number; // Y within the card content area
+  srcY: number;
 }
 function getConnections(pages: AppPage[]): Conn[] {
   const idxMap: Record<string, number> = {};
@@ -47,7 +61,7 @@ function getConnections(pages: AppPage[]): Conn[] {
 
   const conns: Conn[] = [];
   pages.forEach((page, pi) => {
-    let y = 16; // just top padding
+    let y = 16;
     page.elements.forEach((el) => {
       const h = elHeight(el.type);
       const lid = (el.props as Record<string, unknown>).pageLinkId as string | undefined;
@@ -92,8 +106,18 @@ function Arrows({ pages }: { pages: AppPage[] }) {
 
 /* ─── Sortable element wrapper ─── */
 function SortableEl({
-  element, isSelected, onSelect,
-}: { element: AppElement; isSelected: boolean; onSelect: (id: string) => void }) {
+  element, isSelected, onSelect, onDelete, onMoveUp, onMoveDown,
+  canMoveUp, canMoveDown,
+}: {
+  element: AppElement;
+  isSelected: boolean;
+  onSelect: (id: string) => void;
+  onDelete: (id: string) => void;
+  onMoveUp: (id: string) => void;
+  onMoveDown: (id: string) => void;
+  canMoveUp: boolean;
+  canMoveDown: boolean;
+}) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: element.id,
     data: { type: element.type, isCanvas: true },
@@ -102,21 +126,74 @@ function SortableEl({
     <div
       ref={setNodeRef}
       style={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.4 : 1 }}
-      className={cn('canvas-element group', isSelected && 'selected')}
+      className={cn(
+        'canvas-element group relative',
+        isSelected
+          ? 'ring-2 ring-[#1ec8a5] ring-offset-1 rounded'
+          : '',
+      )}
       onClick={(e) => { e.stopPropagation(); onSelect(element.id); }}
     >
-      <div {...attributes} {...listeners}
+      {/* Drag handle */}
+      <div
+        {...attributes}
+        {...listeners}
         className="absolute left-0 top-0 bottom-0 w-4 flex items-center justify-center opacity-0 group-hover:opacity-100 cursor-grab z-10"
-        onClick={(e) => e.stopPropagation()}>
+        onClick={(e) => e.stopPropagation()}
+      >
         <svg className="w-3 h-3 text-blue-400" fill="currentColor" viewBox="0 0 24 24">
           <path d="M8 6a2 2 0 100-4 2 2 0 000 4zm8 0a2 2 0 100-4 2 2 0 000 4zM8 12a2 2 0 100-4 2 2 0 000 4zm8 0a2 2 0 100-4 2 2 0 000 4zM8 18a2 2 0 100-4 2 2 0 000 4zm8 0a2 2 0 100-4 2 2 0 000 4z" />
         </svg>
       </div>
+
+      {/* Selected: label + layer controls + delete button */}
       {isSelected && (
-        <div className="absolute -top-5 left-0 bg-blue-600 text-white text-[10px] px-2 py-0.5 rounded-t z-20 font-medium pointer-events-none">
-          {element.type}
+        <div className="absolute -top-6 left-0 right-0 flex items-center gap-1 z-20 pointer-events-none">
+          {/* Element type label */}
+          <span className="bg-[#1ec8a5] text-white text-[10px] px-2 py-0.5 rounded-t font-medium pointer-events-none">
+            {element.type}
+          </span>
+          {/* Layer: move up (前面へ) */}
+          <button
+            className={cn(
+              'pointer-events-auto text-[10px] px-1.5 py-0.5 rounded font-medium transition-colors',
+              canMoveUp
+                ? 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                : 'bg-slate-800 text-slate-600 cursor-not-allowed',
+            )}
+            disabled={!canMoveUp}
+            onClick={(e) => { e.stopPropagation(); onMoveUp(element.id); }}
+            title="前面へ"
+          >
+            ↑ 前面へ
+          </button>
+          {/* Layer: move down (背面へ) */}
+          <button
+            className={cn(
+              'pointer-events-auto text-[10px] px-1.5 py-0.5 rounded font-medium transition-colors',
+              canMoveDown
+                ? 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                : 'bg-slate-800 text-slate-600 cursor-not-allowed',
+            )}
+            disabled={!canMoveDown}
+            onClick={(e) => { e.stopPropagation(); onMoveDown(element.id); }}
+            title="背面へ"
+          >
+            ↓ 背面へ
+          </button>
+          {/* Spacer */}
+          <div className="flex-1" />
+          {/* Delete button — top-right */}
+          <button
+            className="pointer-events-auto w-5 h-5 flex items-center justify-center rounded bg-red-500 hover:bg-red-600 text-white text-[11px] font-bold transition-colors"
+            onClick={(e) => { e.stopPropagation(); onDelete(element.id); }}
+            title="削除"
+          >
+            ×
+          </button>
         </div>
       )}
+
       <div className="pl-4">
         <ElementRenderer element={element} />
       </div>
@@ -128,11 +205,15 @@ function SortableEl({
 function PageCard({
   page, index, isSelected, selectedElementId, pageCount,
   onSelect, onSelectElement, onClickBg, onDelete, onRename,
+  onDeleteElement, onMoveElementUp, onMoveElementDown,
 }: {
   page: AppPage; index: number; isSelected: boolean;
   selectedElementId: string | null; pageCount: number;
   onSelect: () => void; onSelectElement: (id: string) => void; onClickBg: () => void;
   onDelete: () => void; onRename: (name: string) => void;
+  onDeleteElement: (id: string) => void;
+  onMoveElementUp: (id: string) => void;
+  onMoveElementDown: (id: string) => void;
 }) {
   const { setNodeRef, isOver } = useDroppable({
     id: isSelected ? 'canvas-drop-zone' : `page-prev-${page.id}`,
@@ -150,13 +231,18 @@ function PageCard({
     else setLabelInput(page.name);
   };
 
+  /* Find index of selected element for layer controls */
+  const selectedIdx = selectedElementId
+    ? page.elements.findIndex((e) => e.id === selectedElementId)
+    : -1;
+
   return (
     <div
       style={{ position: 'absolute', left: PAD + index * (CARD_W + CARD_GAP), top: PAD, width: CARD_W }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
-      {/* Label */}
+      {/* Page title bar above phone frame */}
       <div className="flex items-center gap-1.5 mb-2 h-6">
         {editingLabel ? (
           <input
@@ -213,7 +299,6 @@ function PageCard({
         )}
         style={{ height: CARD_H, backgroundColor: page.backgroundColor || '#fff' }}
       >
-        {/* Page content */}
         {isSelected ? (
           <SortableContext items={page.elements.map(e => e.id)} strategy={verticalListSortingStrategy}>
             <div
@@ -222,29 +307,34 @@ function PageCard({
               style={{ height: CARD_H, backgroundColor: page.backgroundColor || '#fff' }}
             >
               {page.elements.length === 0 ? (
+                /* ── Empty state ── */
                 <div className={cn(
                   'flex flex-col items-center justify-center rounded-lg border-2 border-dashed m-4 transition-colors',
-                  isOver ? 'border-[#1ec8a5] bg-[#f0fdf9] text-[#1ec8a5]' : 'border-gray-200 text-gray-300',
+                  isOver ? 'border-[#1ec8a5] bg-[#f0fdf9] text-[#1ec8a5]' : 'border-gray-200',
                 )} style={{ height: CARD_H - 32 }}>
-                  <svg className="w-8 h-8 mb-2 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4v16m8-8H4" />
-                  </svg>
-                  <p className="text-xs font-medium">要素をドロップ</p>
+                  <span style={{ fontSize: '2rem', lineHeight: 1 }} className="mb-3">📱</span>
+                  <p className="text-sm font-medium text-gray-400 mb-1">ここにエレメントをドロップ</p>
+                  <p className="text-xs text-gray-300">左パネルからエレメントを選択してください</p>
                 </div>
               ) : (
-                page.elements.map((el) => (
+                page.elements.map((el, elIdx) => (
                   <SortableEl
                     key={el.id}
                     element={el}
                     isSelected={selectedElementId === el.id}
                     onSelect={onSelectElement}
+                    onDelete={onDeleteElement}
+                    onMoveUp={onMoveElementUp}
+                    onMoveDown={onMoveElementDown}
+                    canMoveUp={elIdx > 0}
+                    canMoveDown={elIdx < page.elements.length - 1}
                   />
                 ))
               )}
             </div>
           </SortableContext>
         ) : (
-          // Static preview for non-selected pages
+          /* Static preview for non-selected pages */
           <div className="overflow-hidden pointer-events-none" style={{ height: CARD_H }}>
             <div className="p-3 space-y-2">
               {page.elements.map((el) => (
@@ -277,9 +367,10 @@ export default function Canvas({ viewMode: _viewMode }: CanvasProps) {
   const {
     project, selectedPageId, selectedElementId,
     selectElement, removeElement, selectPage, addPage, deletePage, renamePage,
+    reorderElements,
   } = useBuilderStore();
 
-  const [zoom, setZoom] = useState(0.75);
+  const [zoom, setZoom] = useState(ZOOM_DEFAULT);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [panning, setPanning] = useState(false);
   const dragOrigin = useRef({ mx: 0, my: 0, px: 0, py: 0 });
@@ -301,7 +392,10 @@ export default function Canvas({ viewMode: _viewMode }: CanvasProps) {
   /* Wheel zoom (no page scroll) */
   const handleWheel = useCallback((e: WheelEvent) => {
     e.preventDefault();
-    setZoom((z) => Math.min(1.5, Math.max(0.3, z - e.deltaY * 0.0008)));
+    setZoom((z) => {
+      const next = z - e.deltaY * 0.0008;
+      return Math.min(ZOOM_STEPS[ZOOM_STEPS.length - 1], Math.max(ZOOM_STEPS[0], next));
+    });
   }, []);
   useEffect(() => {
     const el = containerRef.current;
@@ -325,9 +419,28 @@ export default function Canvas({ viewMode: _viewMode }: CanvasProps) {
   };
   const onMouseUp = () => setPanning(false);
 
-  /* Canvas dimensions — extra slot for the add-page placeholder card */
+  /* Layer reorder helpers */
+  const handleMoveElementUp = useCallback((elementId: string) => {
+    const page = pages.find((p) => p.id === selectedPageId);
+    if (!page) return;
+    const idx = page.elements.findIndex((e) => e.id === elementId);
+    if (idx > 0) reorderElements(page.id, idx, idx - 1);
+  }, [pages, selectedPageId, reorderElements]);
+
+  const handleMoveElementDown = useCallback((elementId: string) => {
+    const page = pages.find((p) => p.id === selectedPageId);
+    if (!page) return;
+    const idx = page.elements.findIndex((e) => e.id === elementId);
+    if (idx < page.elements.length - 1) reorderElements(page.id, idx, idx + 1);
+  }, [pages, selectedPageId, reorderElements]);
+
+  /* Canvas dimensions */
   const contentW = PAD * 2 + (pages.length + 1) * (CARD_W + CARD_GAP);
   const contentH = PAD * 2 + LABEL_H + CARD_H + 60;
+
+  const zoomPct = Math.round(zoom * 100);
+  const canZoomOut = zoom > ZOOM_STEPS[0] + 0.001;
+  const canZoomIn = zoom < ZOOM_STEPS[ZOOM_STEPS.length - 1] - 0.001;
 
   return (
     <div
@@ -377,10 +490,13 @@ export default function Canvas({ viewMode: _viewMode }: CanvasProps) {
             onClickBg={() => selectElement(null)}
             onDelete={() => deletePage(page.id)}
             onRename={(name) => renamePage(page.id, name)}
+            onDeleteElement={(id) => removeElement(id)}
+            onMoveElementUp={handleMoveElementUp}
+            onMoveElementDown={handleMoveElementDown}
           />
         ))}
 
-        {/* Add page placeholder card — after the last page */}
+        {/* Add page placeholder card */}
         <div
           style={{
             position: 'absolute',
@@ -389,7 +505,7 @@ export default function Canvas({ viewMode: _viewMode }: CanvasProps) {
             width: CARD_W,
           }}
         >
-          <div className="h-6 mb-2" /> {/* Label height spacer */}
+          <div className="h-6 mb-2" />
           <button
             onClick={() => addPage()}
             className="w-full rounded-xl border-2 border-dashed border-gray-300 hover:border-blue-400 hover:bg-blue-50/50 transition-all group flex flex-col items-center justify-center gap-3 cursor-pointer"
@@ -405,29 +521,47 @@ export default function Canvas({ viewMode: _viewMode }: CanvasProps) {
         </div>
       </div>
 
-      {/* ── Bottom toolbar ── */}
-      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-0.5 bg-white rounded-xl shadow-lg border border-gray-200 px-2 py-1.5 z-10">
+      {/* ── Zoom controls — bottom-left ── */}
+      <div className="absolute bottom-4 left-4 flex items-center gap-1 bg-slate-800 rounded-lg shadow-lg px-2 py-1.5 z-10">
         <button
-          onClick={() => setZoom((z) => Math.min(1.5, +(z + 0.1).toFixed(2)))}
-          className="w-8 h-8 flex items-center justify-center text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
-          title="ズームイン"
-        >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-          </svg>
-        </button>
-        <button
-          onClick={() => setZoom((z) => Math.max(0.3, +(z - 0.1).toFixed(2)))}
-          className="w-8 h-8 flex items-center justify-center text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+          onClick={() => setZoom((z) => snapZoom(z, 'out'))}
+          disabled={!canZoomOut}
+          className={cn(
+            'w-7 h-7 flex items-center justify-center rounded text-sm font-bold transition-colors',
+            canZoomOut
+              ? 'text-slate-300 hover:bg-slate-700 hover:text-white'
+              : 'text-slate-600 cursor-not-allowed',
+          )}
           title="ズームアウト"
         >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
-          </svg>
+          −
         </button>
-        <div className="w-px h-5 bg-gray-200 mx-1" />
         <button
-          onClick={() => { setZoom(0.75); setPan({ x: 0, y: 0 }); }}
+          onClick={() => { setZoom(ZOOM_DEFAULT); setPan({ x: 0, y: 0 }); }}
+          className="w-12 h-7 flex items-center justify-center rounded text-[11px] font-mono text-slate-300 hover:bg-slate-700 hover:text-white transition-colors tabular-nums"
+          title="ズームリセット (100%)"
+        >
+          {zoomPct}%
+        </button>
+        <button
+          onClick={() => setZoom((z) => snapZoom(z, 'in'))}
+          disabled={!canZoomIn}
+          className={cn(
+            'w-7 h-7 flex items-center justify-center rounded text-sm font-bold transition-colors',
+            canZoomIn
+              ? 'text-slate-300 hover:bg-slate-700 hover:text-white'
+              : 'text-slate-600 cursor-not-allowed',
+          )}
+          title="ズームイン"
+        >
+          +
+        </button>
+      </div>
+
+      {/* ── Center toolbar (reset / info) ── */}
+      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-0.5 bg-white rounded-xl shadow-lg border border-gray-200 px-2 py-1.5 z-10">
+        <button
+          onClick={() => { setZoom(ZOOM_DEFAULT); setPan({ x: 0, y: 0 }); }}
           className="w-8 h-8 flex items-center justify-center text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
           title="リセット"
         >
@@ -437,10 +571,9 @@ export default function Canvas({ viewMode: _viewMode }: CanvasProps) {
         </button>
         <div className="w-px h-5 bg-gray-200 mx-1" />
         <span className="text-[11px] text-gray-500 font-mono w-10 text-center tabular-nums">
-          {Math.round(zoom * 100)}%
+          {zoomPct}%
         </span>
       </div>
-
     </div>
   );
 }

@@ -23,7 +23,18 @@ export function createDefaultProject(): AppProject {
     ],
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
-    database: { tables: [] },
+    database: {
+      tables: [{
+        id: uuidv4(),
+        name: 'Users',
+        columns: [
+          { id: uuidv4(), name: 'Name', type: 'text' as const },
+          { id: uuidv4(), name: 'パスワード', type: 'password' as const },
+        ],
+        rows: [],
+        createdAt: new Date().toISOString(),
+      }],
+    },
   };
 }
 
@@ -356,7 +367,7 @@ export const useBuilderStore = create<BuilderStore>((set, get) => ({
     const newTable: DbTable = {
       id: uuidv4(),
       name,
-      columns: [{ id: uuidv4(), name: 'ID', type: 'text' }],
+      columns: [{ id: uuidv4(), name: 'Name', type: 'text' as const }],
       rows: [],
       createdAt: new Date().toISOString(),
     };
@@ -372,6 +383,9 @@ export const useBuilderStore = create<BuilderStore>((set, get) => ({
   deleteDbTable: (tableId) => {
     const state = get();
     if (!state.project) return;
+    // Users table cannot be deleted
+    const tableToDelete = (state.project.database?.tables ?? []).find(t => t.id === tableId);
+    if (!tableToDelete || tableToDelete.name === 'Users') return;
     const updated = {
       ...state.project,
       database: { tables: (state.project.database?.tables ?? []).filter(t => t.id !== tableId) },
@@ -417,6 +431,10 @@ export const useBuilderStore = create<BuilderStore>((set, get) => ({
   deleteDbColumn: (tableId, columnId) => {
     const state = get();
     if (!state.project) return;
+    // Name column cannot be deleted
+    const table = (state.project.database?.tables ?? []).find(t => t.id === tableId);
+    const colToDelete = table?.columns.find(c => c.id === columnId);
+    if (colToDelete?.name === 'Name') return;
     const updated = {
       ...state.project,
       database: {

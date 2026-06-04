@@ -81,11 +81,18 @@ export interface CarouselItem {
 // ─── Click Flow (Action) types ───────────────────────────────────
 export type ClickActionType =
   | 'navigate'   // ページ移動
-  | 'create'     // データ作成
-  | 'update'     // データ更新
-  | 'delete'     // データ削除
-  | 'alert'      // アラート表示
-  | 'redirect';  // リダイレクト
+  | 'new_page'   // 新規ページ作成して遷移
+  | 'back'       // 直前ページへ戻る
+  | 'redirect'   // 外部リンク (URLを開く)
+  | 'create'     // テーブルにレコード作成
+  | 'update'     // レコードを更新
+  | 'delete'     // レコードを削除
+  | 'custom'     // カスタムアクション (外部API連携)
+  | 'set_value'  // エレメント値の変更
+  | 'login'      // ログイン/ログアウト/登録
+  | 'alert';     // アラート表示 (legacy)
+
+export type LoginSubType = 'login' | 'logout' | 'register';
 
 export interface ClickAction {
   id: string;
@@ -93,10 +100,18 @@ export interface ClickAction {
   label?: string;
   // navigate / redirect
   targetPageId?: string;
+  // external URL (redirect, custom)
+  url?: string;
   // DB operations
   tableId?: string;
   // alert
   message?: string;
+  // custom action API URL
+  apiUrl?: string;
+  // set_value: target element
+  targetElementId?: string;
+  // login sub-type
+  loginSubType?: LoginSubType;
 }
 
 // ─── Visibility condition ───────────────────────────────────────
@@ -231,7 +246,7 @@ export interface AppPage {
 }
 
 // ─── Database types ───────────────────────────────────
-export type DbColumnType = 'text' | 'number' | 'boolean' | 'date' | 'email' | 'url' | 'image' | 'relational';
+export type DbColumnType = 'text' | 'password' | 'number' | 'boolean' | 'datetime' | 'date' | 'image' | 'file' | 'relational' | 'email' | 'url';
 
 export interface DbColumn {
   id: string;

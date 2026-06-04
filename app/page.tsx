@@ -1,6 +1,15 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { v4 as uuidv4 } from 'uuid';
 import FaqAccordion from '@/components/FaqAccordion';
 import ContactForm from '@/components/ContactForm';
+import { AppProject } from '@/lib/types';
+
+// ─── Constants ────────────────────────────────────────────────────
+const STORAGE_KEY = 'click_builder_v1';
 
 const APP_TYPES = [
   { emoji: '🎯', title: '診断アプリ', desc: 'パーソナリティ診断・相性診断など' },
@@ -15,24 +24,21 @@ const VOICES = [
   {
     company: 'アジケ株式会社',
     role: 'デザイン部門責任者',
-    quote:
-      'プロトタイプ作成が週1日から半日に短縮。クライアントへのプレゼンが格段にスムーズになりました。',
+    quote: 'プロトタイプ作成が週1日から半日に短縮。クライアントへのプレゼンが格段にスムーズになりました。',
     avatar: 'A',
     color: 'bg-purple-500',
   },
   {
     company: '東武トップツアーズ株式会社',
     role: 'DX推進室',
-    quote:
-      'エンジニアなしで社内申請フローをデジタル化。展開まで2週間で完了し、コストも大幅削減できました。',
+    quote: 'エンジニアなしで社内申請フローをデジタル化。展開まで2週間で完了し、コストも大幅削減できました。',
     avatar: 'T',
     color: 'bg-blue-500',
   },
   {
     company: '日本農業新聞',
     role: 'デジタル事業部',
-    quote:
-      '読者向けアンケートアプリを内製化。回答率が紙の3倍になり、データ収集の質が大きく向上しました。',
+    quote: '読者向けアンケートアプリを内製化。回答率が紙の3倍になり、データ収集の質が大きく向上しました。',
     avatar: 'N',
     color: 'bg-green-500',
   },
@@ -126,64 +132,534 @@ const PRICING_PLANS = [
   },
 ];
 
-export default function LandingPage() {
+// ─── Device option types ───────────────────────────────────────────
+type DeviceType = 'mobile' | 'pc' | 'responsive';
+type PrimaryDevice = 'mobile' | 'tablet' | 'pc';
+
+// ─── Inline project factory (mirrors lib/store createDefaultProject) ─
+function createProjectInline(name: string): AppProject {
+  const pageId = uuidv4();
+  return {
+    id: uuidv4(),
+    name: name || '新しいアプリ',
+    description: '',
+    pages: [
+      {
+        id: pageId,
+        name: 'ホーム',
+        elements: [],
+        backgroundColor: '#ffffff',
+      },
+    ],
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    database: {
+      tables: [
+        {
+          id: uuidv4(),
+          name: 'Users',
+          columns: [
+            { id: uuidv4(), name: 'Name', type: 'text' as const },
+            { id: uuidv4(), name: 'パスワード', type: 'password' as const },
+          ],
+          rows: [],
+          createdAt: new Date().toISOString(),
+        },
+      ],
+    },
+  };
+}
+
+// ─── Relative time helper ─────────────────────────────────────────
+function relativeTime(iso: string): string {
+  const diff = Date.now() - new Date(iso).getTime();
+  const min = Math.floor(diff / 60000);
+  if (min < 1) return 'たった今';
+  if (min < 60) return `${min}分前`;
+  const hr = Math.floor(min / 60);
+  if (hr < 24) return `${hr}時間前`;
+  const day = Math.floor(hr / 24);
+  if (day < 30) return `${day}日前`;
+  return `${Math.floor(day / 30)}ヶ月前`;
+}
+
+// ─── Step indicator ───────────────────────────────────────────────
+function StepDots({ total, current }: { total: number; current: number }) {
+  return (
+    <div className="flex items-center justify-center gap-2 mb-6">
+      {Array.from({ length: total }).map((_, i) => (
+        <div
+          key={i}
+          className="rounded-full transition-all duration-200"
+          style={{
+            width: i === current ? 24 : 8,
+            height: 8,
+            background: i === current ? '#1ec8a5' : '#e5e7eb',
+          }}
+        />
+      ))}
+    </div>
+  );
+}
+
+// ─── New Project Wizard Modal ─────────────────────────────────────
+function NewProjectModal({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
+  const router = useRouter();
+  const [step, setStep] = useState(0);
+  const [device, setDevice] = useState<DeviceType>('mobile');
+  const [primaryDevice, setPrimaryDevice] = useState<PrimaryDevice>('mobile');
+  const [projectName, setProjectName] = useState('');
+
+  // Determine effective steps: if responsive (v4), show step 1 (primary device)
+  const steps = device === 'responsive' ? 3 : 2;
+  // Map logical step index:
+  //   step 0 = device selection
+  //   step 1 = primary device (only if responsive)
+  //   last   = name input
+
+  const handleNext = () => {
+    if (step === 0) {
+      if (device === 'responsive') {
+        setStep(1);
+      } else {
+        setStep(2);
+      }
+    } else if (step === 1) {
+      setStep(2);
+    }
+  };
+
+  const handleCreate = () => {
+    const name = projectName.trim() || '新しいアプリ';
+    const project = createProjectInline(name);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(project));
+    onCreated();
+    router.push('/builder');
+  };
+
+  // Visual step index for dots
+  const dotIndex = step === 2 ? steps - 1 : step;
+
+  const deviceOptions: { id: DeviceType; icon: string; label: string; sub?: string; badge?: string }[] = [
+    { id: 'mobile', icon: '📱', label: 'モバイルのみ', sub: 'v3' },
+    { id: 'pc', icon: '🖥️', label: 'PCのみ', sub: 'v3' },
+    { id: 'responsive', icon: '📱🖥️', label: 'PC / タブレット / モバイル', sub: 'v4 レスポンシブ', badge: 'Pro' },
+  ];
+
+  const primaryOptions: { id: PrimaryDevice; icon: string; label: string }[] = [
+    { id: 'mobile', icon: '📱', label: 'モバイル' },
+    { id: 'tablet', icon: '📟', label: 'タブレット' },
+    { id: 'pc', icon: '🖥️', label: 'PC' },
+  ];
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{ background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(4px)' }}
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      <div
+        className="bg-white rounded-2xl shadow-2xl w-full max-w-lg p-8 relative"
+        style={{ maxHeight: '90vh', overflowY: 'auto' }}
+      >
+        {/* Close */}
+        <button
+          onClick={onClose}
+          className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full text-gray-400 hover:bg-gray-100 transition-colors"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+
+        <StepDots total={steps} current={dotIndex} />
+
+        {/* Step 0: Device selection */}
+        {step === 0 && (
+          <>
+            <h2 className="text-xl font-black text-center mb-1" style={{ color: 'var(--ink)' }}>
+              アクセスするデバイスを選択
+            </h2>
+            <p className="text-sm text-center mb-6" style={{ color: 'var(--gray)' }}>
+              このアプリを利用するユーザーのデバイスを選んでください
+            </p>
+            <div className="space-y-3">
+              {deviceOptions.map((opt) => (
+                <button
+                  key={opt.id}
+                  onClick={() => setDevice(opt.id)}
+                  className="w-full flex items-center gap-4 p-4 rounded-xl border-2 text-left transition-all duration-150"
+                  style={{
+                    borderColor: device === opt.id ? '#1ec8a5' : '#e5e7eb',
+                    background: device === opt.id ? '#f0fdfb' : '#fff',
+                  }}
+                >
+                  <span className="text-2xl">{opt.icon}</span>
+                  <div className="flex-1">
+                    <div className="font-semibold text-sm" style={{ color: 'var(--ink)' }}>
+                      {opt.label}
+                    </div>
+                    {opt.sub && (
+                      <div className="text-xs mt-0.5" style={{ color: 'var(--gray)' }}>{opt.sub}</div>
+                    )}
+                  </div>
+                  {opt.badge && (
+                    <span
+                      className="text-xs font-bold px-2 py-0.5 rounded-full"
+                      style={{ background: '#1ec8a5', color: '#fff' }}
+                    >
+                      {opt.badge}
+                    </span>
+                  )}
+                  <div
+                    className="w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0"
+                    style={{ borderColor: device === opt.id ? '#1ec8a5' : '#d1d5db' }}
+                  >
+                    {device === opt.id && (
+                      <div className="w-2.5 h-2.5 rounded-full" style={{ background: '#1ec8a5' }} />
+                    )}
+                  </div>
+                </button>
+              ))}
+            </div>
+            <button
+              onClick={handleNext}
+              className="mt-6 w-full py-3 rounded-xl font-bold text-white transition-opacity hover:opacity-90"
+              style={{ background: '#1ec8a5' }}
+            >
+              次へ
+            </button>
+          </>
+        )}
+
+        {/* Step 1: Primary device (only for responsive) */}
+        {step === 1 && (
+          <>
+            <h2 className="text-xl font-black text-center mb-1" style={{ color: 'var(--ink)' }}>
+              プライマリーに設定するデバイスを選択
+            </h2>
+            <p className="text-sm text-center mb-6" style={{ color: 'var(--gray)' }}>
+              編集画面の基準デバイスを選択します
+            </p>
+            <div className="space-y-3">
+              {primaryOptions.map((opt) => (
+                <button
+                  key={opt.id}
+                  onClick={() => setPrimaryDevice(opt.id)}
+                  className="w-full flex items-center gap-4 p-4 rounded-xl border-2 text-left transition-all duration-150"
+                  style={{
+                    borderColor: primaryDevice === opt.id ? '#1ec8a5' : '#e5e7eb',
+                    background: primaryDevice === opt.id ? '#f0fdfb' : '#fff',
+                  }}
+                >
+                  <span className="text-2xl">{opt.icon}</span>
+                  <div className="flex-1 font-semibold text-sm" style={{ color: 'var(--ink)' }}>
+                    {opt.label}
+                  </div>
+                  <div
+                    className="w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0"
+                    style={{ borderColor: primaryDevice === opt.id ? '#1ec8a5' : '#d1d5db' }}
+                  >
+                    {primaryDevice === opt.id && (
+                      <div className="w-2.5 h-2.5 rounded-full" style={{ background: '#1ec8a5' }} />
+                    )}
+                  </div>
+                </button>
+              ))}
+            </div>
+            <div className="mt-6 flex gap-3">
+              <button
+                onClick={() => setStep(0)}
+                className="flex-1 py-3 rounded-xl font-semibold border transition-colors"
+                style={{ borderColor: '#e5e7eb', color: 'var(--gray)' }}
+              >
+                戻る
+              </button>
+              <button
+                onClick={handleNext}
+                className="flex-1 py-3 rounded-xl font-bold text-white transition-opacity hover:opacity-90"
+                style={{ background: '#1ec8a5' }}
+              >
+                次へ
+              </button>
+            </div>
+          </>
+        )}
+
+        {/* Step 2: Project name */}
+        {step === 2 && (
+          <>
+            <h2 className="text-xl font-black text-center mb-1" style={{ color: 'var(--ink)' }}>
+              プロダクト名を入力
+            </h2>
+            <p className="text-sm text-center mb-6" style={{ color: 'var(--gray)' }}>
+              後から変更できます
+            </p>
+            <input
+              type="text"
+              value={projectName}
+              onChange={(e) => setProjectName(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') handleCreate(); }}
+              placeholder="例：ECサイト"
+              autoFocus
+              className="w-full px-4 py-3 rounded-xl border-2 text-sm outline-none transition-colors"
+              style={{
+                borderColor: '#e5e7eb',
+                color: 'var(--ink)',
+              }}
+              onFocus={(e) => { e.currentTarget.style.borderColor = '#1ec8a5'; }}
+              onBlur={(e) => { e.currentTarget.style.borderColor = '#e5e7eb'; }}
+            />
+            <div className="mt-6 flex gap-3">
+              <button
+                onClick={() => setStep(device === 'responsive' ? 1 : 0)}
+                className="flex-1 py-3 rounded-xl font-semibold border transition-colors"
+                style={{ borderColor: '#e5e7eb', color: 'var(--gray)' }}
+              >
+                戻る
+              </button>
+              <button
+                onClick={handleCreate}
+                className="flex-1 py-3 rounded-xl font-bold text-white transition-opacity hover:opacity-90"
+                style={{ background: '#1ec8a5' }}
+              >
+                作成する
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── Project Card ─────────────────────────────────────────────────
+function ProjectCard({ project }: { project: AppProject }) {
+  const [hovered, setHovered] = useState(false);
+
+  return (
+    <div
+      className="bg-white rounded-xl border overflow-hidden cursor-pointer transition-all duration-200"
+      style={{
+        borderColor: '#e5e7eb',
+        boxShadow: hovered ? '0 8px 24px rgba(0,0,0,0.12)' : '0 1px 4px rgba(0,0,0,0.06)',
+      }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
+      {/* Thumbnail area */}
+      <div
+        className="relative h-36 flex items-center justify-center"
+        style={{ background: 'linear-gradient(135deg, #f0fdfb, #e0f9f4)' }}
+      >
+        <span className="text-5xl select-none">📱</span>
+
+        {/* Hover actions */}
+        {hovered && (
+          <div className="absolute inset-0 flex items-center justify-center gap-3 bg-black/30 transition-all">
+            <Link
+              href="/builder"
+              className="px-4 py-2 rounded-lg font-semibold text-sm text-white transition-opacity hover:opacity-90"
+              style={{ background: '#1ec8a5' }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              編集
+            </Link>
+            <Link
+              href={`/preview/${project.id}`}
+              target="_blank"
+              className="px-4 py-2 rounded-lg font-semibold text-sm bg-white transition-opacity hover:opacity-90"
+              style={{ color: 'var(--ink)' }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              プレビュー
+            </Link>
+          </div>
+        )}
+      </div>
+
+      {/* Info */}
+      <div className="p-4">
+        <div className="font-bold text-sm truncate" style={{ color: 'var(--ink)' }}>
+          {project.name}
+        </div>
+        <div className="text-xs mt-1" style={{ color: 'var(--gray)' }}>
+          更新: {relativeTime(project.updatedAt)}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Workspace Section ────────────────────────────────────────────
+function WorkspaceSection() {
+  const [project, setProject] = useState<AppProject | null>(null);
+  const [loaded, setLoaded] = useState(false);
+  const [showModal, setShowModal] = useState(false);
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) setProject(JSON.parse(raw) as AppProject);
+    } catch {
+      // ignore
+    }
+    setLoaded(true);
+  }, []);
+
+  const handleCreated = () => {
+    // Reload project from localStorage after creation
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) setProject(JSON.parse(raw) as AppProject);
+    } catch {
+      // ignore
+    }
+  };
+
+  if (!loaded) {
+    return (
+      <div className="flex items-center justify-center py-24">
+        <div className="w-8 h-8 rounded-full border-2 border-t-transparent animate-spin" style={{ borderColor: '#1ec8a5', borderTopColor: 'transparent' }} />
+      </div>
+    );
+  }
+
+  return (
+    <section className="max-w-7xl mx-auto px-6 py-12">
+      {/* Section header */}
+      <div className="flex items-center justify-between mb-8">
+        <h2 className="text-2xl font-black" style={{ color: 'var(--ink)' }}>
+          マイプロダクト
+        </h2>
+        <button
+          onClick={() => setShowModal(true)}
+          className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-white text-sm transition-opacity hover:opacity-90 shadow-sm"
+          style={{ background: '#1ec8a5' }}
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
+          </svg>
+          新規プロダクト作成
+        </button>
+      </div>
+
+      {/* No projects: centered empty state */}
+      {!project ? (
+        <div className="flex flex-col items-center justify-center py-20 text-center">
+          <div
+            className="w-20 h-20 rounded-2xl flex items-center justify-center text-4xl mb-6"
+            style={{ background: '#f0fdfb' }}
+          >
+            🚀
+          </div>
+          <h3 className="text-2xl font-black mb-2" style={{ color: 'var(--ink)' }}>
+            最初のアプリを作ろう
+          </h3>
+          <p className="text-sm mb-8 max-w-xs" style={{ color: 'var(--gray)' }}>
+            ドラッグ&amp;ドロップだけでプロ品質のアプリが作れます。まずはプロダクトを作成してみましょう。
+          </p>
+          <button
+            onClick={() => setShowModal(true)}
+            className="inline-flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-white text-base transition-all hover:scale-105 shadow-lg"
+            style={{ background: '#1ec8a5' }}
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
+            </svg>
+            新規プロダクト作成
+          </button>
+        </div>
+      ) : (
+        /* Project grid */
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+          <ProjectCard project={project} />
+
+          {/* Add new card */}
+          <button
+            onClick={() => setShowModal(true)}
+            className="bg-white rounded-xl border-2 border-dashed h-full min-h-[168px] flex flex-col items-center justify-center gap-2 transition-all hover:border-[#1ec8a5] hover:bg-[#f0fdfb] group"
+            style={{ borderColor: '#e5e7eb' }}
+          >
+            <div
+              className="w-10 h-10 rounded-full flex items-center justify-center text-xl transition-colors"
+              style={{ background: '#f3f4f6' }}
+            >
+              <svg className="w-5 h-5 text-gray-400 group-hover:text-[#1ec8a5] transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+            </div>
+            <span className="text-xs font-semibold text-gray-400 group-hover:text-[#1ec8a5] transition-colors">
+              新規作成
+            </span>
+          </button>
+        </div>
+      )}
+
+      {showModal && (
+        <NewProjectModal
+          onClose={() => setShowModal(false)}
+          onCreated={() => {
+            handleCreated();
+            setShowModal(false);
+          }}
+        />
+      )}
+    </section>
+  );
+}
+
+// ─── Main Page ────────────────────────────────────────────────────
+export default function HomePage() {
   return (
     <div className="min-h-screen" style={{ background: 'var(--bg)', color: 'var(--ink)' }}>
-      {/* ── Header ── */}
+
+      {/* ── Workspace Navbar ── */}
       <header
-        className="fixed top-0 left-0 right-0 z-50 bg-white/90 backdrop-blur-md"
+        className="sticky top-0 z-40 bg-white"
         style={{ borderBottom: '1px solid var(--line)' }}
       >
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
+          {/* Logo */}
           <div className="flex items-center gap-2">
             <div
               className="w-8 h-8 rounded-xl flex items-center justify-center"
-              style={{ background: 'linear-gradient(135deg, var(--green), var(--green-d))' }}
+              style={{ background: 'linear-gradient(135deg, #1ec8a5, #16a085)' }}
             >
               <span className="text-white font-black text-sm">C</span>
             </div>
             <span className="text-xl font-black" style={{ color: 'var(--ink)' }}>Click</span>
           </div>
 
-          <nav className="hidden md:flex items-center gap-8">
-            {[
-              ['#apps', 'サービス'],
-              ['#voices', '導入事例'],
-              ['#pricing', '料金'],
-              ['#contact', 'お問い合わせ'],
-            ].map(([href, label]) => (
-              <a
-                key={href}
-                href={href}
-                className="text-sm font-medium transition-colors hover:opacity-70"
-                style={{ color: 'var(--gray)' }}
-              >
-                {label}
-              </a>
-            ))}
-          </nav>
-
+          {/* Right: avatar + logout */}
           <div className="flex items-center gap-3">
-            <a
-              href="#"
-              className="text-sm font-medium transition-colors px-4 py-2"
-              style={{ color: 'var(--gray)' }}
+            <div
+              className="w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-bold"
+              style={{ background: '#1ec8a5' }}
             >
-              ログイン
-            </a>
-            <Link
-              href="/builder"
-              className="text-sm font-bold text-white px-5 py-2.5 rounded-xl shadow-sm transition-colors"
-              style={{ background: 'var(--green)' }}
+              U
+            </div>
+            <button
+              className="text-sm font-medium px-3 py-1.5 rounded-lg border transition-colors hover:bg-gray-50"
+              style={{ color: 'var(--gray)', borderColor: 'var(--line)' }}
+              onClick={() => {/* no-op */}}
             >
-              無料で始める
-            </Link>
+              ログアウト
+            </button>
           </div>
         </div>
       </header>
 
-      {/* ── Hero ── */}
-      <section className="relative pt-32 pb-28 overflow-hidden text-center">
+      {/* ── Workspace ── */}
+      <WorkspaceSection />
+
+      {/* ── Divider ── */}
+      <div className="max-w-7xl mx-auto px-6">
+        <hr style={{ borderColor: 'var(--line)' }} />
+      </div>
+
+      {/* ── LP: Hero ── */}
+      <section className="relative pt-24 pb-28 overflow-hidden text-center">
         <div
           className="absolute inset-0"
           style={{
@@ -420,10 +896,7 @@ export default function LandingPage() {
                 style={{ borderColor: 'var(--line)', background: 'var(--bg2)' }}
               >
                 <div className="text-3xl mb-3">{f.icon}</div>
-                <div
-                  className="text-sm font-semibold"
-                  style={{ color: 'var(--ink)' }}
-                >
+                <div className="text-sm font-semibold" style={{ color: 'var(--ink)' }}>
                   {f.title}
                 </div>
               </div>

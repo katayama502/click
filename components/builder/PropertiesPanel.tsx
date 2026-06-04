@@ -5,11 +5,21 @@ import { useBuilderStore } from '@/lib/store';
 import {
   AppElement, AppPage, PageType, ListItem, NavItem, RadioOption, DropdownOption,
   TableColumn, TableRow, CarouselItem,
-  ClickAction, ClickActionType, VisibilityCondition, ConditionOperator,
+  ClickAction, ClickActionType, LoginSubType, VisibilityCondition, ConditionOperator,
   FormField,
 } from '@/lib/types';
 import { v4 as uuidv4 } from 'uuid';
 import { cn } from '@/lib/utils';
+
+/* ─── Tab types ─── */
+type PanelTab = 'style' | 'data' | 'action' | 'settings';
+
+const PANEL_TABS: { id: PanelTab; label: string; icon: string }[] = [
+  { id: 'style',    label: 'スタイル',   icon: '🎨' },
+  { id: 'data',     label: 'データ',     icon: '🗄️' },
+  { id: 'action',   label: 'アクション', icon: '⚡' },
+  { id: 'settings', label: '設定',       icon: '⚙️' },
+];
 
 /* ─── Primitive inputs ─── */
 function PLabel({ children }: { children: React.ReactNode }) {
@@ -195,19 +205,27 @@ function CarouselItemsEditor({ items, onChange }: {
   );
 }
 
-/* ─── Click Flow section (button only) ─── */
-const ACTION_TYPE_LABELS: Record<ClickActionType, string> = {
-  navigate: 'ページ移動',
-  create: 'データ作成',
-  update: 'データ更新',
-  delete: 'データ削除',
-  alert: 'アラート',
-  redirect: 'リダイレクト',
-};
+/* ─── Click Flow — all 10 action types ─── */
+const ACTION_TYPE_OPTIONS: { value: ClickActionType; label: string; desc: string }[] = [
+  { value: 'navigate',  label: 'ページ移動',           desc: '選択ページへ遷移' },
+  { value: 'new_page',  label: '新規ページ',            desc: '新規ページを作成して遷移' },
+  { value: 'back',      label: '← 戻る',               desc: '直前ページへ戻る' },
+  { value: 'redirect',  label: '外部リンク',            desc: 'URLを開く' },
+  { value: 'create',    label: '作成',                  desc: 'テーブルにレコード作成' },
+  { value: 'update',    label: '更新',                  desc: 'レコードを更新' },
+  { value: 'delete',    label: '削除',                  desc: 'レコードを削除' },
+  { value: 'custom',    label: 'カスタムアクション',    desc: '外部API連携' },
+  { value: 'set_value', label: 'エレメント値の変更',    desc: 'インプット値を変更' },
+  { value: 'login',     label: 'ログイン',              desc: 'ログイン/ログアウト/登録' },
+  { value: 'alert',     label: 'アラート',              desc: 'メッセージ表示' },
+];
 
-function ClickFlowSection({ element }: { element: AppElement }) {
+const ACTION_TYPE_LABELS: Record<ClickActionType, string> = Object.fromEntries(
+  ACTION_TYPE_OPTIONS.map((o) => [o.value, o.label])
+) as Record<ClickActionType, string>;
+
+function ClickFlowTab({ element }: { element: AppElement }) {
   const { updateElementRoot, project } = useBuilderStore();
-  const [open, setOpen] = useState(true);
   const [addOpen, setAddOpen] = useState(false);
   const actions = element.clickActions ?? [];
 
@@ -225,117 +243,220 @@ function ClickFlowSection({ element }: { element: AppElement }) {
     setActions(actions.map((a) => a.id === id ? { ...a, ...patch } : a));
 
   return (
-    <div className="border-t border-slate-700 pt-3 mt-3">
-      {/* Header */}
-      <button
-        onClick={() => setOpen((v) => !v)}
-        className="flex items-center justify-between w-full mb-2 group"
-      >
-        <span className="text-[10px] font-semibold uppercase tracking-widest text-slate-400 group-hover:text-slate-300 transition-colors">
-          クリックフロー
-        </span>
-        <svg
-          className={cn('w-3 h-3 text-slate-500 transition-transform', open ? '' : '-rotate-90')}
-          fill="none" stroke="currentColor" viewBox="0 0 24 24"
-        >
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-        </svg>
-      </button>
-
-      {open && (
-        <div>
-          {/* Existing actions */}
-          {actions.length > 0 && (
-            <div className="space-y-2 mb-2">
-              {actions.map((action, idx) => (
-                <div key={action.id} className="bg-slate-800 rounded-lg p-2 space-y-1.5">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-semibold text-[#1ec8a5] uppercase tracking-wide">
-                      {idx + 1}. {ACTION_TYPE_LABELS[action.type]}
-                    </span>
-                    <button
-                      onClick={() => removeAction(action.id)}
-                      className="text-red-400 hover:text-red-300 text-xs px-1"
-                    >×</button>
-                  </div>
-                  {/* navigate: page select */}
-                  {action.type === 'navigate' && (
-                    <select
-                      value={action.targetPageId ?? ''}
-                      onChange={(e) => updateAction(action.id, { targetPageId: e.target.value || undefined })}
-                      className="prop-input appearance-none w-full text-xs"
-                    >
-                      <option value="">（ページを選択）</option>
-                      {project?.pages.map((page) => (
-                        <option key={page.id} value={page.id}>{page.name}</option>
-                      ))}
-                    </select>
-                  )}
-                  {/* alert: message input */}
-                  {action.type === 'alert' && (
-                    <input
-                      type="text"
-                      value={action.message ?? ''}
-                      onChange={(e) => updateAction(action.id, { message: e.target.value })}
-                      placeholder="メッセージを入力..."
-                      maxLength={200}
-                      className="prop-input w-full text-xs"
-                    />
-                  )}
-                  {/* create / update: table name */}
-                  {(action.type === 'create' || action.type === 'update') && (
-                    <input
-                      type="text"
-                      value={action.tableId ?? ''}
-                      onChange={(e) => updateAction(action.id, { tableId: e.target.value })}
-                      placeholder="テーブルID"
-                      maxLength={100}
-                      className="prop-input w-full text-xs"
-                    />
-                  )}
-                  {/* label (all types) */}
-                  <input
-                    type="text"
-                    value={action.label ?? ''}
-                    onChange={(e) => updateAction(action.id, { label: e.target.value })}
-                    placeholder="アクション名（任意）"
-                    maxLength={80}
-                    className="prop-input w-full text-xs"
-                  />
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* Add action dropdown */}
-          <div className="relative">
-            <button
-              onClick={() => setAddOpen((v) => !v)}
-              className="w-full py-1.5 rounded-md text-xs font-medium bg-[#1ec8a5]/10 text-[#1ec8a5] hover:bg-[#1ec8a5]/20 transition-colors border border-[#1ec8a5]/30"
-            >
-              ＋ アクション追加
-            </button>
-            {addOpen && (
-              <div className="absolute z-20 left-0 right-0 top-full mt-1 bg-slate-800 border border-slate-600 rounded-lg shadow-xl overflow-hidden">
-                {(['navigate', 'create', 'update', 'alert'] as ClickActionType[]).map((type) => (
-                  <button
-                    key={type}
-                    onClick={() => addAction(type)}
-                    className="w-full text-left px-3 py-2 text-xs text-slate-300 hover:bg-slate-700 hover:text-white transition-colors"
-                  >
-                    {ACTION_TYPE_LABELS[type]}
-                  </button>
-                ))}
+    <div className="p-3">
+      {/* Existing actions */}
+      {actions.length > 0 && (
+        <div className="space-y-2 mb-3">
+          {actions.map((action, idx) => (
+            <div key={action.id} className="bg-slate-800 rounded-lg p-2 space-y-1.5">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-semibold text-[#1ec8a5] uppercase tracking-wide">
+                  {idx + 1}. {ACTION_TYPE_LABELS[action.type]}
+                </span>
+                <button
+                  onClick={() => removeAction(action.id)}
+                  className="text-red-400 hover:text-red-300 text-xs px-1"
+                >×</button>
               </div>
-            )}
-          </div>
+
+              {/* navigate: page select */}
+              {action.type === 'navigate' && (
+                <select
+                  value={action.targetPageId ?? ''}
+                  onChange={(e) => updateAction(action.id, { targetPageId: e.target.value || undefined })}
+                  className="prop-input appearance-none w-full text-xs"
+                >
+                  <option value="">（ページを選択）</option>
+                  {project?.pages.map((page) => (
+                    <option key={page.id} value={page.id}>{page.name}</option>
+                  ))}
+                </select>
+              )}
+
+              {/* redirect: external URL */}
+              {action.type === 'redirect' && (
+                <input
+                  type="text"
+                  value={action.url ?? ''}
+                  onChange={(e) => updateAction(action.id, { url: e.target.value })}
+                  placeholder="https://example.com"
+                  maxLength={2048}
+                  className="prop-input w-full text-xs"
+                />
+              )}
+
+              {/* alert: message input */}
+              {action.type === 'alert' && (
+                <input
+                  type="text"
+                  value={action.message ?? ''}
+                  onChange={(e) => updateAction(action.id, { message: e.target.value })}
+                  placeholder="メッセージを入力..."
+                  maxLength={200}
+                  className="prop-input w-full text-xs"
+                />
+              )}
+
+              {/* create / update / delete: table select */}
+              {(action.type === 'create' || action.type === 'update' || action.type === 'delete') && (
+                <select
+                  value={action.tableId ?? ''}
+                  onChange={(e) => updateAction(action.id, { tableId: e.target.value || undefined })}
+                  className="prop-input appearance-none w-full text-xs"
+                >
+                  <option value="">（テーブルを選択）</option>
+                  {project?.database?.tables.map((t) => (
+                    <option key={t.id} value={t.id}>{t.name}</option>
+                  ))}
+                </select>
+              )}
+
+              {/* custom: API URL */}
+              {action.type === 'custom' && (
+                <input
+                  type="text"
+                  value={action.apiUrl ?? ''}
+                  onChange={(e) => updateAction(action.id, { apiUrl: e.target.value })}
+                  placeholder="https://api.example.com/endpoint"
+                  maxLength={2048}
+                  className="prop-input w-full text-xs"
+                />
+              )}
+
+              {/* set_value: target element */}
+              {action.type === 'set_value' && (
+                <input
+                  type="text"
+                  value={action.targetElementId ?? ''}
+                  onChange={(e) => updateAction(action.id, { targetElementId: e.target.value })}
+                  placeholder="対象エレメントID"
+                  maxLength={100}
+                  className="prop-input w-full text-xs"
+                />
+              )}
+
+              {/* login: sub-type selector */}
+              {action.type === 'login' && (
+                <div className="flex gap-1">
+                  {([
+                    { value: 'login' as LoginSubType,    label: 'ログイン' },
+                    { value: 'logout' as LoginSubType,   label: 'ログアウト' },
+                    { value: 'register' as LoginSubType, label: '新規登録' },
+                  ]).map((opt) => (
+                    <button
+                      key={opt.value}
+                      onClick={() => updateAction(action.id, { loginSubType: opt.value })}
+                      className={cn(
+                        'flex-1 py-1 rounded text-[10px] font-medium transition-colors',
+                        (action.loginSubType ?? 'login') === opt.value
+                          ? 'bg-[#1ec8a5] text-white'
+                          : 'bg-slate-700 text-slate-400 hover:bg-slate-600'
+                      )}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {/* back / new_page: no extra fields */}
+
+              {/* label (all types) */}
+              <input
+                type="text"
+                value={action.label ?? ''}
+                onChange={(e) => updateAction(action.id, { label: e.target.value })}
+                placeholder="アクション名（任意）"
+                maxLength={80}
+                className="prop-input w-full text-xs"
+              />
+            </div>
+          ))}
         </div>
       )}
+
+      {actions.length === 0 && (
+        <p className="text-slate-500 text-xs text-center py-4 mb-3">
+          アクションがありません
+        </p>
+      )}
+
+      {/* Add action dropdown */}
+      <div className="relative">
+        <button
+          onClick={() => setAddOpen((v) => !v)}
+          className="w-full py-1.5 rounded-md text-xs font-medium bg-[#1ec8a5]/10 text-[#1ec8a5] hover:bg-[#1ec8a5]/20 transition-colors border border-[#1ec8a5]/30"
+        >
+          ＋ アクション追加
+        </button>
+        {addOpen && (
+          <div className="absolute z-20 left-0 right-0 top-full mt-1 bg-slate-800 border border-slate-600 rounded-lg shadow-xl overflow-hidden max-h-64 overflow-y-auto">
+            {ACTION_TYPE_OPTIONS.map((opt) => (
+              <button
+                key={opt.value}
+                onClick={() => addAction(opt.value)}
+                className="w-full text-left px-3 py-2 text-xs text-slate-300 hover:bg-slate-700 hover:text-white transition-colors border-b border-slate-700/50 last:border-b-0"
+              >
+                <span className="font-medium">{opt.label}</span>
+                <span className="text-slate-500 ml-2">{opt.desc}</span>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
 
-/* ─── Visibility section (all elements) ─── */
+/* ─── Data binding tab ─── */
+const DATA_BINDABLE_TYPES = ['list', 'table', 'carousel', 'card'];
+
+function DataTab({ element }: { element: AppElement }) {
+  const { updateElement, project } = useBuilderStore();
+  const up = (p: Partial<AppElement['props']>) => updateElement(element.id, p);
+  const isBindable = DATA_BINDABLE_TYPES.includes(element.type);
+
+  if (!isBindable) {
+    return (
+      <div className="p-3 flex flex-col items-center justify-center h-32 text-center">
+        <p className="text-slate-500 text-xs">このエレメントはデータバインドに</p>
+        <p className="text-slate-500 text-xs">対応していません</p>
+        <p className="text-slate-600 text-[10px] mt-2">対応: list / table / carousel / card</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="p-3">
+      <PRow label="データソース">
+        <select
+          className="prop-input appearance-none"
+          value={(element.props as any).dataTableId ?? ''}
+          onChange={(e) => up({ dataTableId: e.target.value || undefined } as any)}
+        >
+          <option value="">（テーブルを選択）</option>
+          {project?.database?.tables.map((t) => (
+            <option key={t.id} value={t.id}>{t.name}</option>
+          ))}
+        </select>
+      </PRow>
+
+      <PRow label="フィルター">
+        <div className="prop-input text-slate-500 text-xs cursor-not-allowed select-none">
+          近日公開予定...
+        </div>
+      </PRow>
+
+      <PRow label="並び替え">
+        <div className="prop-input text-slate-500 text-xs cursor-not-allowed select-none">
+          近日公開予定...
+        </div>
+      </PRow>
+    </div>
+  );
+}
+
+/* ─── Settings tab: element visibility conditions ─── */
 const OPERATOR_LABELS: Record<ConditionOperator, string> = {
   eq: '＝ 等しい',
   ne: '≠ 等しくない',
@@ -344,9 +465,8 @@ const OPERATOR_LABELS: Record<ConditionOperator, string> = {
   contains: '含む',
 };
 
-function VisibilitySection({ element }: { element: AppElement }) {
+function SettingsElementTab({ element }: { element: AppElement }) {
   const { updateElementRoot } = useBuilderStore();
-  const [open, setOpen] = useState(false);
   const mode = element.visibilityMode ?? 'always';
   const conditions = element.visibilityConditions ?? [];
 
@@ -366,115 +486,97 @@ function VisibilitySection({ element }: { element: AppElement }) {
     setConditions(conditions.map((c) => c.id === id ? { ...c, ...patch } : c));
 
   return (
-    <div className="border-t border-slate-700 pt-3 mt-3">
-      {/* Header */}
-      <button
-        onClick={() => setOpen((v) => !v)}
-        className="flex items-center justify-between w-full mb-2 group"
-      >
-        <span className="text-[10px] font-semibold uppercase tracking-widest text-slate-400 group-hover:text-slate-300 transition-colors">
-          表示設定
-        </span>
-        <svg
-          className={cn('w-3 h-3 text-slate-500 transition-transform', open ? '' : '-rotate-90')}
-          fill="none" stroke="currentColor" viewBox="0 0 24 24"
-        >
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-        </svg>
-      </button>
+    <div className="p-3">
+      <PSection title="表示設定" />
 
-      {open && (
+      {/* Mode toggle */}
+      <div className="flex gap-1 mb-3">
+        {(['always', 'conditional'] as const).map((m) => (
+          <button
+            key={m}
+            onClick={() => setMode(m)}
+            className={cn(
+              'flex-1 py-1.5 rounded text-xs font-medium transition-colors',
+              mode === m
+                ? 'bg-[#1ec8a5] text-white'
+                : 'bg-slate-700 text-slate-400 hover:bg-slate-600'
+            )}
+          >
+            {m === 'always' ? '常に表示' : '条件により表示'}
+          </button>
+        ))}
+      </div>
+
+      {/* Condition builder */}
+      {mode === 'conditional' && (
         <div>
-          {/* Mode toggle */}
-          <div className="flex gap-1 mb-3">
-            {(['always', 'conditional'] as const).map((m) => (
-              <button
-                key={m}
-                onClick={() => setMode(m)}
-                className={cn(
-                  'flex-1 py-1.5 rounded text-xs font-medium transition-colors',
-                  mode === m
-                    ? 'bg-[#1ec8a5] text-white'
-                    : 'bg-slate-700 text-slate-400 hover:bg-slate-600'
-                )}
-              >
-                {m === 'always' ? '常に表示' : '条件により表示'}
-              </button>
+          {conditions.length === 0 && (
+            <p className="text-slate-500 text-[10px] text-center py-2 mb-2">
+              条件がありません。追加してください。
+            </p>
+          )}
+          <div className="space-y-2 mb-2">
+            {conditions.map((cond, idx) => (
+              <div key={cond.id} className="bg-slate-800 rounded-lg p-2 space-y-1.5">
+                <div className="flex items-center justify-between">
+                  {idx > 0 && (
+                    <select
+                      value={cond.logic}
+                      onChange={(e) => updateCondition(cond.id, { logic: e.target.value as 'AND' | 'OR' })}
+                      className="prop-input appearance-none text-[10px] py-0.5 w-16"
+                    >
+                      <option value="AND">AND</option>
+                      <option value="OR">OR</option>
+                    </select>
+                  )}
+                  {idx === 0 && <span className="text-[10px] text-slate-500">条件 1</span>}
+                  <button
+                    onClick={() => removeCondition(cond.id)}
+                    className="text-red-400 hover:text-red-300 text-xs px-1 ml-auto"
+                  >×</button>
+                </div>
+                <input
+                  type="text"
+                  value={cond.field}
+                  onChange={(e) => updateCondition(cond.id, { field: e.target.value })}
+                  placeholder="フィールド名"
+                  maxLength={80}
+                  className="prop-input w-full text-xs"
+                />
+                <select
+                  value={cond.operator}
+                  onChange={(e) => updateCondition(cond.id, { operator: e.target.value as ConditionOperator })}
+                  className="prop-input appearance-none w-full text-xs"
+                >
+                  {(Object.keys(OPERATOR_LABELS) as ConditionOperator[]).map((op) => (
+                    <option key={op} value={op}>{OPERATOR_LABELS[op]}</option>
+                  ))}
+                </select>
+                <input
+                  type="text"
+                  value={cond.value}
+                  onChange={(e) => updateCondition(cond.id, { value: e.target.value })}
+                  placeholder="値"
+                  maxLength={200}
+                  className="prop-input w-full text-xs"
+                />
+              </div>
             ))}
           </div>
-
-          {/* Condition builder */}
-          {mode === 'conditional' && (
-            <div>
-              {conditions.length === 0 && (
-                <p className="text-slate-500 text-[10px] text-center py-2 mb-2">
-                  条件がありません。追加してください。
-                </p>
-              )}
-              <div className="space-y-2 mb-2">
-                {conditions.map((cond, idx) => (
-                  <div key={cond.id} className="bg-slate-800 rounded-lg p-2 space-y-1.5">
-                    <div className="flex items-center justify-between">
-                      {idx > 0 && (
-                        <select
-                          value={cond.logic}
-                          onChange={(e) => updateCondition(cond.id, { logic: e.target.value as 'AND' | 'OR' })}
-                          className="prop-input appearance-none text-[10px] py-0.5 w-16"
-                        >
-                          <option value="AND">AND</option>
-                          <option value="OR">OR</option>
-                        </select>
-                      )}
-                      {idx === 0 && <span className="text-[10px] text-slate-500">条件 1</span>}
-                      <button
-                        onClick={() => removeCondition(cond.id)}
-                        className="text-red-400 hover:text-red-300 text-xs px-1 ml-auto"
-                      >×</button>
-                    </div>
-                    <input
-                      type="text"
-                      value={cond.field}
-                      onChange={(e) => updateCondition(cond.id, { field: e.target.value })}
-                      placeholder="フィールド名"
-                      maxLength={80}
-                      className="prop-input w-full text-xs"
-                    />
-                    <select
-                      value={cond.operator}
-                      onChange={(e) => updateCondition(cond.id, { operator: e.target.value as ConditionOperator })}
-                      className="prop-input appearance-none w-full text-xs"
-                    >
-                      {(Object.keys(OPERATOR_LABELS) as ConditionOperator[]).map((op) => (
-                        <option key={op} value={op}>{OPERATOR_LABELS[op]}</option>
-                      ))}
-                    </select>
-                    <input
-                      type="text"
-                      value={cond.value}
-                      onChange={(e) => updateCondition(cond.id, { value: e.target.value })}
-                      placeholder="値"
-                      maxLength={200}
-                      className="prop-input w-full text-xs"
-                    />
-                  </div>
-                ))}
-              </div>
-              <button
-                onClick={addCondition}
-                className="w-full py-1.5 rounded-md text-xs font-medium bg-slate-700 text-slate-300 hover:bg-slate-600 transition-colors border border-slate-600"
-              >
-                ＋ 条件を追加
-              </button>
-            </div>
-          )}
+          <button
+            onClick={addCondition}
+            className="w-full py-1.5 rounded-md text-xs font-medium bg-slate-700 text-slate-300 hover:bg-slate-600 transition-colors border border-slate-600"
+          >
+            ＋ 条件を追加
+          </button>
         </div>
       )}
     </div>
   );
 }
 
-/* ─── Main element properties ─── */
-function ElementProperties({ element }: { element: AppElement }) {
+/* ─── Style tab content (element) ─── */
+function StyleTab({ element }: { element: AppElement }) {
   const { updateElement, project } = useBuilderStore();
   const { type, props } = element;
   const up = (p: Partial<AppElement['props']>) => updateElement(element.id, p);
@@ -587,9 +689,6 @@ function ElementProperties({ element }: { element: AppElement }) {
           </PRow>
         </>
       )}
-
-      {/* ─ Click Flow (button only) ─ */}
-      {type === 'button' && <ClickFlowSection element={element} />}
 
       {/* ─ Toggle ─ */}
       {type === 'toggle' && (
@@ -784,17 +883,14 @@ function ElementProperties({ element }: { element: AppElement }) {
       {type === 'form' && (
         <>
           <PSection title="フォーム設定" />
-
           <PRow label="フォームタイトル">
             <input className="prop-input" value={props.formTitle ?? ''}
               onChange={(e) => up({ formTitle: e.target.value })} />
           </PRow>
-
           <PRow label="送信ボタン">
             <input className="prop-input" value={props.formSubmitLabel ?? '送信する'}
               onChange={(e) => up({ formSubmitLabel: e.target.value })} />
           </PRow>
-
           <PRow label="データソース（テーブル）">
             <select className="prop-input appearance-none" value={props.formTableId ?? ''}
               onChange={(e) => up({ formTableId: e.target.value })}>
@@ -804,7 +900,6 @@ function ElementProperties({ element }: { element: AppElement }) {
               ))}
             </select>
           </PRow>
-
           {props.formTableId && (() => {
             const table = project?.database?.tables.find((t) => t.id === props.formTableId);
             if (!table) return null;
@@ -880,7 +975,7 @@ function ElementProperties({ element }: { element: AppElement }) {
       {!['image','divider','spacer','nav','shape'].includes(type) && (
         <PColorRow label="文字色" value={props.color || ''} onChange={(v) => up({ color: v })} />
       )}
-      {['card','container','button'].includes(type) && (
+      {['card','button'].includes(type) && (
         <PColorRow label="背景色" value={props.bgColor || ''} onChange={(v) => up({ bgColor: v })} />
       )}
       {type === 'container' && (
@@ -893,7 +988,7 @@ function ElementProperties({ element }: { element: AppElement }) {
         <>
           <PRow label="フォントサイズ"><PInput value={props.fontSize || ''} onChange={(v) => up({ fontSize: v })} placeholder="16px" maxLength={20} /></PRow>
           <PRow label="フォントウェイト">
-            <PSelect value={props.fontWeight || ''}  onChange={(v) => up({ fontWeight: v })}
+            <PSelect value={props.fontWeight || ''} onChange={(v) => up({ fontWeight: v })}
               options={[{ label: 'デフォルト', value: '' },{ label: '300', value: '300' },{ label: '400', value: '400' },{ label: '500', value: '500' },{ label: '600', value: '600' },{ label: '700', value: '700' },{ label: '900', value: '900' }]} />
           </PRow>
         </>
@@ -905,9 +1000,6 @@ function ElementProperties({ element }: { element: AppElement }) {
           <PRow label="角丸"><PInput value={props.borderRadius || ''} onChange={(v) => up({ borderRadius: v })} placeholder="8px, 50%" maxLength={20} /></PRow>
         </>
       )}
-
-      {/* ─ 表示設定 (all elements) ─ */}
-      <VisibilitySection element={element} />
 
       {/* ─ Delete ─ */}
       <div className="mt-5 pt-4 border-t border-slate-800">
@@ -1027,47 +1119,52 @@ function TagsEditor({ tags, onChange }: { tags: string[]; onChange: (t: string[]
   );
 }
 
-/* ─── Page settings (no element selected) ─── */
-function PageSettingsPanel({ page }: { page: AppPage }) {
+/* ─── Page settings tab (settings tab, no element selected) ─── */
+function PageSettingsTab({ page }: { page: AppPage }) {
   const { updatePageSettings, renamePage } = useBuilderStore();
   const [nameInput, setNameInput] = useState(page.name);
 
   return (
-    <div className="p-4 space-y-4">
-      <PSection title="ページ設定" />
-
-      {/* Page name */}
+    <div className="p-3 space-y-1">
       <PRow label="ページ名">
         <input
           className="prop-input"
           value={nameInput}
           onChange={(e) => setNameInput(e.target.value)}
           onBlur={() => { if (nameInput.trim()) renamePage(page.id, nameInput.trim()); }}
-          onKeyDown={(e) => { if (e.key === 'Enter') { if (nameInput.trim()) renamePage(page.id, nameInput.trim()); } }}
+          onKeyDown={(e) => { if (e.key === 'Enter' && nameInput.trim()) renamePage(page.id, nameInput.trim()); }}
         />
       </PRow>
 
-      {/* Page type */}
       <PRow label="ページタイプ">
-        <select
-          className="prop-input appearance-none"
-          value={page.pageType ?? 'normal'}
-          onChange={(e) => updatePageSettings(page.id, { pageType: e.target.value as PageType })}
-        >
-          <option value="normal">通常ページ</option>
-          <option value="modal">モーダル</option>
-        </select>
+        <div className="flex gap-1">
+          {([
+            { value: 'normal' as PageType, label: '白紙' },
+            { value: 'modal'  as PageType, label: 'モーダル' },
+          ]).map((opt) => (
+            <button
+              key={opt.value}
+              onClick={() => updatePageSettings(page.id, { pageType: opt.value })}
+              className={cn(
+                'flex-1 py-1.5 rounded text-xs font-medium transition-colors',
+                (page.pageType ?? 'normal') === opt.value
+                  ? 'bg-[#1ec8a5] text-white'
+                  : 'bg-slate-700 text-slate-400 hover:bg-slate-600'
+              )}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
       </PRow>
 
-      {/* Background color */}
       <PColorRow
         label="背景色"
         value={page.backgroundColor ?? '#ffffff'}
         onChange={(v) => updatePageSettings(page.id, { backgroundColor: v })}
       />
 
-      {/* Auto refresh */}
-      <div className="flex items-center justify-between mb-3">
+      <div className="flex items-center justify-between mb-3 pt-1">
         <div>
           <PLabel>自動更新</PLabel>
           <p className="text-[10px] text-slate-600">ページを定期的に再読み込み</p>
@@ -1079,6 +1176,40 @@ function PageSettingsPanel({ page }: { page: AppPage }) {
           <div className={cn('absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform', page.autoRefresh && 'translate-x-4')} />
         </button>
       </div>
+
+      <PSection title="開始ページ設定" />
+      <PRow label="未ログイン時">
+        <div className="prop-input text-slate-500 text-xs cursor-not-allowed select-none">近日公開予定...</div>
+      </PRow>
+      <PRow label="ログイン時">
+        <div className="prop-input text-slate-500 text-xs cursor-not-allowed select-none">近日公開予定...</div>
+      </PRow>
+    </div>
+  );
+}
+
+/* ─── Tab bar ─── */
+function TabBar({ active, onChange }: { active: PanelTab; onChange: (t: PanelTab) => void }) {
+  return (
+    <div className="flex border-b border-slate-700 bg-[#243447] flex-shrink-0">
+      {PANEL_TABS.map((tab) => (
+        <button
+          key={tab.id}
+          onClick={() => onChange(tab.id)}
+          className={cn(
+            'flex-1 flex flex-col items-center py-2 gap-0.5 text-[9px] font-medium transition-colors relative',
+            active === tab.id
+              ? 'text-[#1ec8a5]'
+              : 'text-slate-500 hover:text-slate-300'
+          )}
+        >
+          <span className="text-sm leading-none">{tab.icon}</span>
+          <span className="leading-none">{tab.label}</span>
+          {active === tab.id && (
+            <span className="absolute bottom-0 left-1 right-1 h-0.5 bg-[#1ec8a5] rounded-t" />
+          )}
+        </button>
+      ))}
     </div>
   );
 }
@@ -1089,29 +1220,80 @@ export default function PropertiesPanel() {
   const currentPage = project?.pages.find((p) => p.id === selectedPageId);
   const selectedElement = currentPage?.elements.find((el) => el.id === selectedElementId);
 
+  const [activeTab, setActiveTab] = useState<PanelTab>('style');
+
   return (
     <aside className="builder-properties flex flex-col">
-      <div className="p-3 border-b border-slate-700 flex items-center gap-2">
+      {/* Panel header */}
+      <div className="p-3 border-b border-slate-700 flex items-center gap-2 flex-shrink-0">
         <svg className="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
         </svg>
         <h2 className="text-slate-200 font-semibold text-xs uppercase tracking-widest">プロパティ</h2>
       </div>
-      <div className="flex-1 overflow-y-auto">
-        {selectedElement ? (
-          <ElementProperties element={selectedElement} />
-        ) : currentPage ? (
-          <PageSettingsPanel page={currentPage} />
-        ) : (
-          <div className="flex flex-col items-center justify-center h-52 text-center px-4">
-            <svg className="w-8 h-8 text-slate-700 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-            </svg>
-            <p className="text-slate-500 text-xs font-medium">要素を選択してください</p>
-            <p className="text-slate-700 text-xs mt-1">キャンバスの要素をクリック</p>
+
+      {/* Empty state */}
+      {!currentPage && (
+        <div className="flex flex-col items-center justify-center h-52 text-center px-4">
+          <svg className="w-8 h-8 text-slate-700 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+          </svg>
+          <p className="text-slate-500 text-xs font-medium">要素を選択してください</p>
+          <p className="text-slate-700 text-xs mt-1">キャンバスの要素をクリック</p>
+        </div>
+      )}
+
+      {currentPage && (
+        <>
+          {/* Tab bar */}
+          <TabBar active={activeTab} onChange={setActiveTab} />
+
+          {/* Tab content */}
+          <div className="flex-1 overflow-y-auto">
+
+            {/* スタイル tab */}
+            {activeTab === 'style' && (
+              selectedElement
+                ? <StyleTab element={selectedElement} />
+                : (
+                  <div className="p-3 text-center text-slate-500 text-xs py-8">
+                    <p>要素を選択してスタイルを編集</p>
+                  </div>
+                )
+            )}
+
+            {/* データ tab */}
+            {activeTab === 'data' && (
+              selectedElement
+                ? <DataTab element={selectedElement} />
+                : (
+                  <div className="p-3 text-center text-slate-500 text-xs py-8">
+                    <p>要素を選択してデータバインドを設定</p>
+                  </div>
+                )
+            )}
+
+            {/* アクション tab */}
+            {activeTab === 'action' && (
+              selectedElement
+                ? <ClickFlowTab element={selectedElement} />
+                : (
+                  <div className="p-3 text-center text-slate-500 text-xs py-8">
+                    <p>要素を選択してアクションを設定</p>
+                  </div>
+                )
+            )}
+
+            {/* 設定 tab */}
+            {activeTab === 'settings' && (
+              selectedElement
+                ? <SettingsElementTab element={selectedElement} />
+                : <PageSettingsTab page={currentPage} />
+            )}
+
           </div>
-        )}
-      </div>
+        </>
+      )}
     </aside>
   );
 }
