@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { useBuilderStore } from '@/lib/store';
 import {
   AppElement, AppPage, PageType, ListItem, NavItem, RadioOption, DropdownOption,
@@ -28,13 +28,26 @@ function PLabel({ children }: { children: React.ReactNode }) {
 function PInput({ value, onChange, placeholder, type = 'text', maxLength }: {
   value: string; onChange: (v: string) => void; placeholder?: string; type?: string; maxLength?: number;
 }) {
-  return <input type={type} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} maxLength={maxLength} className="prop-input" />;
+  return (
+    <input
+      type={type}
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      placeholder={placeholder}
+      maxLength={maxLength}
+      className="w-full bg-[#1e293b] border border-slate-700 text-slate-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:border-[#1ec8a5] focus:ring-1 focus:ring-[#1ec8a5]/20 transition-colors placeholder:text-slate-600"
+    />
+  );
 }
 function PSelect({ value, onChange, options }: {
   value: string; onChange: (v: string) => void; options: { label: string; value: string }[];
 }) {
   return (
-    <select value={value} onChange={(e) => onChange(e.target.value)} className="prop-input appearance-none">
+    <select
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      className="w-full bg-[#1e293b] border border-slate-700 text-slate-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:border-[#1ec8a5] focus:ring-1 focus:ring-[#1ec8a5]/20 transition-colors appearance-none"
+    >
       {options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
     </select>
   );
@@ -50,13 +63,86 @@ function PColorRow({ label, value, onChange }: { label: string; value: string; o
         <input type="color" value={value || '#000000'} onChange={(e) => onChange(e.target.value)}
           className="w-8 h-8 rounded cursor-pointer border-0 bg-transparent" />
         <input type="text" value={value || ''} onChange={(e) => onChange(e.target.value)} placeholder="#000000"
-          className="prop-input flex-1 font-mono text-xs" />
+          className="flex-1 bg-[#1e293b] border border-slate-700 text-slate-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:border-[#1ec8a5] focus:ring-1 focus:ring-[#1ec8a5]/20 transition-colors font-mono placeholder:text-slate-600" />
       </div>
     </div>
   );
 }
-function PSection({ title }: { title: string }) {
-  return <p className="text-slate-500 text-[10px] font-bold uppercase tracking-widest mt-4 mb-2 pt-3 border-t border-slate-800">{title}</p>;
+function PSection({ title, first = false }: { title: string; first?: boolean }) {
+  return (
+    <p className={cn(
+      'text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-2',
+      first ? 'mt-0' : 'mt-4 pt-3 border-t border-slate-800'
+    )}>
+      {title}
+    </p>
+  );
+}
+
+/* ─── Position & Size section ─── */
+function PositionSizeSection({ element }: { element: AppElement }) {
+  const { moveElement, resizeElement, bringToFront, sendToBack } = useBuilderStore();
+
+  const handleXY = useCallback((axis: 'x' | 'y', raw: string) => {
+    const val = parseInt(raw, 10);
+    if (isNaN(val)) return;
+    if (axis === 'x') moveElement(element.id, val, element.y ?? 8);
+    else moveElement(element.id, element.x ?? 8, val);
+  }, [element, moveElement]);
+
+  const handleWH = useCallback((axis: 'w' | 'h', raw: string) => {
+    if (raw === '' || raw === 'auto') {
+      if (axis === 'w') resizeElement(element.id, undefined, element.h);
+      else resizeElement(element.id, element.w, undefined);
+      return;
+    }
+    const val = parseInt(raw, 10);
+    if (isNaN(val)) return;
+    if (axis === 'w') resizeElement(element.id, val, element.h);
+    else resizeElement(element.id, element.w, val);
+  }, [element, resizeElement]);
+
+  const numInput = (label: string, val: number | undefined, axis: 'x' | 'y' | 'w' | 'h') => (
+    <div className="flex flex-col gap-1">
+      <span className="text-[9px] text-slate-500 font-medium uppercase tracking-wider">{label}</span>
+      <input
+        type="number"
+        value={val ?? ''}
+        placeholder={axis === 'w' || axis === 'h' ? 'auto' : '0'}
+        onChange={(e) => {
+          if (axis === 'x' || axis === 'y') handleXY(axis, e.target.value);
+          else handleWH(axis, e.target.value);
+        }}
+        className="w-full bg-[#1e293b] border border-slate-700 text-slate-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-[#1ec8a5] focus:ring-1 focus:ring-[#1ec8a5]/20 transition-colors text-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+      />
+    </div>
+  );
+
+  return (
+    <div className="mb-2">
+      <PSection title="配置" first />
+      <div className="grid grid-cols-2 gap-2 mb-2">
+        {numInput('X', element.x, 'x')}
+        {numInput('Y', element.y, 'y')}
+        {numInput('W', element.w, 'w')}
+        {numInput('H', element.h, 'h')}
+      </div>
+      <div className="flex gap-1.5">
+        <button
+          onClick={() => bringToFront(element.id)}
+          className="flex-1 py-1.5 rounded-lg text-[10px] font-medium bg-slate-800 border border-slate-700 text-slate-300 hover:bg-slate-700 hover:border-slate-600 transition-all"
+        >
+          前面へ ↑
+        </button>
+        <button
+          onClick={() => sendToBack(element.id)}
+          className="flex-1 py-1.5 rounded-lg text-[10px] font-medium bg-slate-800 border border-slate-700 text-slate-300 hover:bg-slate-700 hover:border-slate-600 transition-all"
+        >
+          背面へ ↓
+        </button>
+      </div>
+    </div>
+  );
 }
 
 function isSafeUrl(url: string) { return url === '' || /^https?:\/\//i.test(url); }
@@ -585,9 +671,11 @@ function StyleTab({ element }: { element: AppElement }) {
     <div className="p-3">
       {/* Type badge */}
       <div className="mb-3 pb-3 border-b border-slate-800 flex items-center gap-2">
-        <div className="w-2 h-2 rounded-full bg-[#1ec8a5]" />
-        <span className="text-slate-200 font-bold text-xs uppercase tracking-wide">{type}</span>
+        <span className="text-xs font-semibold bg-[#1ec8a5]/20 text-[#1ec8a5] px-2 py-1 rounded-full">{type}</span>
       </div>
+
+      {/* Position & Size */}
+      <PositionSizeSection element={element} />
 
       {/* ─ Text content ─ */}
       {(type === 'text' || type === 'heading' || type === 'button' || type === 'card' || type === 'badge') && (
@@ -1003,9 +1091,11 @@ function StyleTab({ element }: { element: AppElement }) {
 
       {/* ─ Delete ─ */}
       <div className="mt-5 pt-4 border-t border-slate-800">
-        <button onClick={() => { const s = useBuilderStore.getState(); s.removeElement(element.id); s.selectElement(null); }}
-          className="w-full py-2 rounded-lg text-xs font-medium bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-colors border border-red-500/20">
-          要素を削除
+        <button
+          onClick={() => { const s = useBuilderStore.getState(); s.removeElement(element.id); s.selectElement(null); }}
+          className="w-full py-2 rounded-lg text-xs font-semibold bg-transparent text-red-400 hover:bg-red-500/10 transition-colors border border-red-500/40 hover:border-red-500/60"
+        >
+          🗑 要素を削除
         </button>
       </div>
     </div>
@@ -1214,6 +1304,17 @@ function TabBar({ active, onChange }: { active: PanelTab; onChange: (t: PanelTab
   );
 }
 
+/* ─── No element placeholder ─── */
+function NoElementPlaceholder() {
+  return (
+    <div className="flex flex-col items-center justify-center h-40 text-center px-4 select-none">
+      <div className="text-slate-700 text-[10px] tracking-widest mb-2">─────────────────</div>
+      <p className="text-slate-500 text-xs leading-relaxed">エレメントを選択すると<br />ここにプロパティが表示されます</p>
+      <div className="text-slate-700 text-[10px] tracking-widest mt-2">─────────────────</div>
+    </div>
+  );
+}
+
 /* ─── Panel wrapper ─── */
 export default function PropertiesPanel() {
   const { project, selectedElementId, selectedPageId } = useBuilderStore();
@@ -1221,6 +1322,16 @@ export default function PropertiesPanel() {
   const selectedElement = currentPage?.elements.find((el) => el.id === selectedElementId);
 
   const [activeTab, setActiveTab] = useState<PanelTab>('style');
+  const [tabVisible, setTabVisible] = useState(true);
+
+  const handleTabChange = (t: PanelTab) => {
+    if (t === activeTab) return;
+    setTabVisible(false);
+    setTimeout(() => {
+      setActiveTab(t);
+      setTabVisible(true);
+    }, 80);
+  };
 
   return (
     <aside className="builder-properties flex flex-col">
@@ -1232,56 +1343,51 @@ export default function PropertiesPanel() {
         <h2 className="text-slate-200 font-semibold text-xs uppercase tracking-widest">プロパティ</h2>
       </div>
 
-      {/* Empty state */}
+      {/* Empty state — no page */}
       {!currentPage && (
         <div className="flex flex-col items-center justify-center h-52 text-center px-4">
           <svg className="w-8 h-8 text-slate-700 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
           </svg>
-          <p className="text-slate-500 text-xs font-medium">要素を選択してください</p>
-          <p className="text-slate-700 text-xs mt-1">キャンバスの要素をクリック</p>
+          <p className="text-slate-500 text-xs font-medium">ページを選択してください</p>
+          <p className="text-slate-700 text-xs mt-1">左パネルのページをクリック</p>
         </div>
       )}
 
       {currentPage && (
         <>
           {/* Tab bar */}
-          <TabBar active={activeTab} onChange={setActiveTab} />
+          <TabBar active={activeTab} onChange={handleTabChange} />
 
-          {/* Tab content */}
-          <div className="flex-1 overflow-y-auto">
+          {/* Tab content with fade/slide animation */}
+          <div
+            className="flex-1 overflow-y-auto"
+            style={{
+              opacity: tabVisible ? 1 : 0,
+              transform: tabVisible ? 'translateY(0)' : 'translateY(4px)',
+              transition: 'opacity 80ms ease, transform 80ms ease',
+            }}
+          >
 
             {/* スタイル tab */}
             {activeTab === 'style' && (
               selectedElement
                 ? <StyleTab element={selectedElement} />
-                : (
-                  <div className="p-3 text-center text-slate-500 text-xs py-8">
-                    <p>要素を選択してスタイルを編集</p>
-                  </div>
-                )
+                : <NoElementPlaceholder />
             )}
 
             {/* データ tab */}
             {activeTab === 'data' && (
               selectedElement
                 ? <DataTab element={selectedElement} />
-                : (
-                  <div className="p-3 text-center text-slate-500 text-xs py-8">
-                    <p>要素を選択してデータバインドを設定</p>
-                  </div>
-                )
+                : <NoElementPlaceholder />
             )}
 
             {/* アクション tab */}
             {activeTab === 'action' && (
               selectedElement
                 ? <ClickFlowTab element={selectedElement} />
-                : (
-                  <div className="p-3 text-center text-slate-500 text-xs py-8">
-                    <p>要素を選択してアクションを設定</p>
-                  </div>
-                )
+                : <NoElementPlaceholder />
             )}
 
             {/* 設定 tab */}

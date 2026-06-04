@@ -2,8 +2,6 @@
 
 import { useRef, useState, useEffect, useCallback } from 'react';
 import { useDroppable } from '@dnd-kit/core';
-import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
 import { AppElement, AppPage } from '@/lib/types';
 import { useBuilderStore } from '@/lib/store';
 import ElementRenderer from './ElementRenderer';
@@ -12,8 +10,6 @@ import { cn } from '@/lib/utils';
 /* ─── Layout constants ─── */
 const CARD_W = 320;
 const CARD_H = 580;
-const CARD_STATUS_H = 0;
-const CARD_CONTENT_H = CARD_H;
 const CARD_GAP = 110;
 const PAD = 56;
 const LABEL_H = 26;
@@ -104,125 +100,115 @@ function Arrows({ pages }: { pages: AppPage[] }) {
   );
 }
 
-/* ─── Sortable element wrapper ─── */
-function SortableEl({
-  element, isSelected, onSelect, onDelete, onMoveUp, onMoveDown,
-  canMoveUp, canMoveDown,
-}: {
-  element: AppElement;
-  isSelected: boolean;
-  onSelect: (id: string) => void;
-  onDelete: (id: string) => void;
-  onMoveUp: (id: string) => void;
-  onMoveDown: (id: string) => void;
-  canMoveUp: boolean;
-  canMoveDown: boolean;
-}) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
-    id: element.id,
-    data: { type: element.type, isCanvas: true },
+/* ─── Resize handles ─── */
+function ResizeHandles({ el, onResize }: { el: AppElement; onResize: (id: string, w: number | undefined, h: number | undefined) => void }) {
+  const handleStyle = (cursor: string, style: React.CSSProperties): React.CSSProperties => ({
+    position: 'absolute',
+    width: 8,
+    height: 8,
+    background: 'white',
+    border: '2px solid #1ec8a5',
+    borderRadius: 2,
+    cursor,
+    zIndex: 200,
+    ...style,
   });
+
+  const startResize = useCallback((
+    e: React.MouseEvent,
+    direction: string,
+  ) => {
+    e.stopPropagation();
+    e.preventDefault();
+    const startX = e.clientX;
+    const startY = e.clientY;
+    const startW = el.w ?? CARD_W - 16;
+    const startH = el.h ?? elHeight(el.type);
+
+    const onMove = (me: MouseEvent) => {
+      const dx = me.clientX - startX;
+      const dy = me.clientY - startY;
+      let newW: number | undefined = startW;
+      let newH: number | undefined = startH;
+
+      if (direction.includes('e')) newW = Math.max(40, startW + dx);
+      if (direction.includes('w')) newW = Math.max(40, startW - dx);
+      if (direction.includes('s')) newH = Math.max(20, startH + dy);
+      if (direction.includes('n')) newH = Math.max(20, startH - dy);
+
+      onResize(el.id, Math.round(newW), Math.round(newH));
+    };
+
+    const onUp = () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
+
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+  }, [el, onResize]);
+
   return (
-    <div
-      ref={setNodeRef}
-      style={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.4 : 1 }}
-      className={cn(
-        'canvas-element group relative',
-        isSelected
-          ? 'ring-2 ring-[#1ec8a5] ring-offset-1 rounded'
-          : '',
-      )}
-      onClick={(e) => { e.stopPropagation(); onSelect(element.id); }}
-    >
-      {/* Drag handle */}
-      <div
-        {...attributes}
-        {...listeners}
-        className="absolute left-0 top-0 bottom-0 w-4 flex items-center justify-center opacity-0 group-hover:opacity-100 cursor-grab z-10"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <svg className="w-3 h-3 text-blue-400" fill="currentColor" viewBox="0 0 24 24">
-          <path d="M8 6a2 2 0 100-4 2 2 0 000 4zm8 0a2 2 0 100-4 2 2 0 000 4zM8 12a2 2 0 100-4 2 2 0 000 4zm8 0a2 2 0 100-4 2 2 0 000 4zM8 18a2 2 0 100-4 2 2 0 000 4zm8 0a2 2 0 100-4 2 2 0 000 4z" />
-        </svg>
-      </div>
-
-      {/* Selected: label + layer controls + delete button */}
-      {isSelected && (
-        <div className="absolute -top-6 left-0 right-0 flex items-center gap-1 z-20 pointer-events-none">
-          {/* Element type label */}
-          <span className="bg-[#1ec8a5] text-white text-[10px] px-2 py-0.5 rounded-t font-medium pointer-events-none">
-            {element.type}
-          </span>
-          {/* Layer: move up (前面へ) */}
-          <button
-            className={cn(
-              'pointer-events-auto text-[10px] px-1.5 py-0.5 rounded font-medium transition-colors',
-              canMoveUp
-                ? 'bg-slate-700 text-slate-300 hover:bg-slate-600'
-                : 'bg-slate-800 text-slate-600 cursor-not-allowed',
-            )}
-            disabled={!canMoveUp}
-            onClick={(e) => { e.stopPropagation(); onMoveUp(element.id); }}
-            title="前面へ"
-          >
-            ↑ 前面へ
-          </button>
-          {/* Layer: move down (背面へ) */}
-          <button
-            className={cn(
-              'pointer-events-auto text-[10px] px-1.5 py-0.5 rounded font-medium transition-colors',
-              canMoveDown
-                ? 'bg-slate-700 text-slate-300 hover:bg-slate-600'
-                : 'bg-slate-800 text-slate-600 cursor-not-allowed',
-            )}
-            disabled={!canMoveDown}
-            onClick={(e) => { e.stopPropagation(); onMoveDown(element.id); }}
-            title="背面へ"
-          >
-            ↓ 背面へ
-          </button>
-          {/* Spacer */}
-          <div className="flex-1" />
-          {/* Delete button — top-right */}
-          <button
-            className="pointer-events-auto w-5 h-5 flex items-center justify-center rounded bg-red-500 hover:bg-red-600 text-white text-[11px] font-bold transition-colors"
-            onClick={(e) => { e.stopPropagation(); onDelete(element.id); }}
-            title="削除"
-          >
-            ×
-          </button>
-        </div>
-      )}
-
-      <div className="pl-4">
-        <ElementRenderer element={element} />
-      </div>
-    </div>
+    <>
+      <div style={handleStyle('nw-resize', { top: -4, left: -4 })} onMouseDown={(e) => startResize(e, 'nw')} />
+      <div style={handleStyle('ne-resize', { top: -4, right: -4 })} onMouseDown={(e) => startResize(e, 'ne')} />
+      <div style={handleStyle('sw-resize', { bottom: -4, left: -4 })} onMouseDown={(e) => startResize(e, 'sw')} />
+      <div style={handleStyle('se-resize', { bottom: -4, right: -4 })} onMouseDown={(e) => startResize(e, 'se')} />
+      <div style={handleStyle('n-resize', { top: -4, left: '50%', transform: 'translateX(-50%)' })} onMouseDown={(e) => startResize(e, 'n')} />
+      <div style={handleStyle('s-resize', { bottom: -4, left: '50%', transform: 'translateX(-50%)' })} onMouseDown={(e) => startResize(e, 's')} />
+      <div style={handleStyle('w-resize', { top: '50%', left: -4, transform: 'translateY(-50%)' })} onMouseDown={(e) => startResize(e, 'w')} />
+      <div style={handleStyle('e-resize', { top: '50%', right: -4, transform: 'translateY(-50%)' })} onMouseDown={(e) => startResize(e, 'e')} />
+    </>
   );
+}
+
+/* ─── Drag state ref type ─── */
+interface DragState {
+  elementId: string;
+  startElX: number;
+  startElY: number;
+  startMouseX: number;
+  startMouseY: number;
 }
 
 /* ─── Single page card ─── */
 function PageCard({
-  page, index, isSelected, selectedElementId, pageCount,
+  page, index, isActive, selectedElementId, pageCount, zoom,
   onSelect, onSelectElement, onClickBg, onDelete, onRename,
-  onDeleteElement, onMoveElementUp, onMoveElementDown,
+  onDeleteElement, onMoveElement, onBringToFront, onSendToBack,
+  onResizeElement,
 }: {
-  page: AppPage; index: number; isSelected: boolean;
-  selectedElementId: string | null; pageCount: number;
-  onSelect: () => void; onSelectElement: (id: string) => void; onClickBg: () => void;
-  onDelete: () => void; onRename: (name: string) => void;
+  page: AppPage;
+  index: number;
+  isActive: boolean;
+  selectedElementId: string | null;
+  pageCount: number;
+  zoom: number;
+  onSelect: () => void;
+  onSelectElement: (id: string) => void;
+  onClickBg: () => void;
+  onDelete: () => void;
+  onRename: (name: string) => void;
   onDeleteElement: (id: string) => void;
-  onMoveElementUp: (id: string) => void;
-  onMoveElementDown: (id: string) => void;
+  onMoveElement: (id: string, x: number, y: number) => void;
+  onBringToFront: (id: string) => void;
+  onSendToBack: (id: string) => void;
+  onResizeElement: (id: string, w: number | undefined, h: number | undefined) => void;
 }) {
   const { setNodeRef, isOver } = useDroppable({
-    id: isSelected ? 'canvas-drop-zone' : `page-prev-${page.id}`,
+    id: isActive ? 'canvas-drop-zone' : `page-prev-${page.id}`,
     data: { isCanvas: true, pageId: page.id },
-    disabled: !isSelected,
+    disabled: !isActive,
   });
+
   const [hovered, setHovered] = useState(false);
   const [editingLabel, setEditingLabel] = useState(false);
   const [labelInput, setLabelInput] = useState(page.name);
+
+  /* Drag state */
+  const dragStateRef = useRef<DragState | null>(null);
+  const [dragElemId, setDragElemId] = useState<string | null>(null);
+  const [dragPos, setDragPos] = useState<{ id: string; x: number; y: number } | null>(null);
 
   const commitRename = () => {
     setEditingLabel(false);
@@ -231,10 +217,46 @@ function PageCard({
     else setLabelInput(page.name);
   };
 
-  /* Find index of selected element for layer controls */
-  const selectedIdx = selectedElementId
-    ? page.elements.findIndex((e) => e.id === selectedElementId)
-    : -1;
+  /* Element drag handlers */
+  const handleElMouseDown = useCallback((e: React.MouseEvent, el: AppElement) => {
+    e.stopPropagation();
+    dragStateRef.current = {
+      elementId: el.id,
+      startElX: el.x ?? 8,
+      startElY: el.y ?? 8,
+      startMouseX: e.clientX,
+      startMouseY: e.clientY,
+    };
+    setDragElemId(el.id);
+  }, []);
+
+  const handleCardMouseMove = useCallback((e: React.MouseEvent) => {
+    if (!dragStateRef.current) return;
+    const ds = dragStateRef.current;
+    const dx = (e.clientX - ds.startMouseX) / zoom;
+    const dy = (e.clientY - ds.startMouseY) / zoom;
+    const newX = Math.max(0, ds.startElX + dx);
+    const newY = Math.max(0, ds.startElY + dy);
+    setDragPos({ id: ds.elementId, x: newX, y: newY });
+  }, [zoom]);
+
+  const commitDrag = useCallback(() => {
+    if (!dragStateRef.current) return;
+    if (dragPos) {
+      onMoveElement(dragPos.id, Math.round(dragPos.x), Math.round(dragPos.y));
+    }
+    dragStateRef.current = null;
+    setDragElemId(null);
+    setDragPos(null);
+  }, [dragPos, onMoveElement]);
+
+  /* Global mouseup in case cursor leaves the card */
+  useEffect(() => {
+    if (!dragElemId) return;
+    const handleUp = () => commitDrag();
+    window.addEventListener('mouseup', handleUp);
+    return () => window.removeEventListener('mouseup', handleUp);
+  }, [dragElemId, commitDrag]);
 
   return (
     <div
@@ -259,7 +281,7 @@ function PageCard({
           />
         ) : (
           <span
-            className={cn('text-xs font-medium cursor-default select-none', isSelected ? 'text-gray-800' : 'text-gray-500')}
+            className={cn('text-xs font-medium cursor-default select-none', isActive ? 'text-gray-800' : 'text-gray-500')}
             title="ダブルクリックでリネーム"
             onDoubleClick={(e) => { e.stopPropagation(); setEditingLabel(true); setLabelInput(page.name); }}
           >
@@ -269,7 +291,7 @@ function PageCard({
         {page.pageType === 'modal' && (
           <span className="text-[10px] bg-purple-100 text-purple-600 px-1.5 py-0.5 rounded font-medium">モーダル</span>
         )}
-        {isSelected && !editingLabel && (
+        {isActive && !editingLabel && (
           <span className="text-[10px] bg-blue-100 text-blue-600 px-1.5 py-0.5 rounded font-medium">編集中</span>
         )}
         {hovered && pageCount > 1 && !editingLabel && (
@@ -290,55 +312,122 @@ function PageCard({
 
       {/* Card */}
       <div
-        onClick={isSelected ? onClickBg : onSelect}
+        onClick={isActive ? onClickBg : onSelect}
         className={cn(
           'rounded-xl overflow-hidden transition-all duration-200',
-          isSelected
+          isActive
             ? 'border-2 border-blue-500 shadow-[0_4px_24px_rgba(59,130,246,0.18)] shadow-xl'
             : 'border border-gray-200 hover:border-gray-300 hover:shadow-lg cursor-pointer shadow-md',
         )}
         style={{ height: CARD_H, backgroundColor: page.backgroundColor || '#fff' }}
       >
-        {isSelected ? (
-          <SortableContext items={page.elements.map(e => e.id)} strategy={verticalListSortingStrategy}>
-            <div
-              ref={setNodeRef}
-              className={cn('overflow-y-auto p-3 space-y-2', isOver && 'drop-zone-active')}
-              style={{ height: CARD_H, backgroundColor: page.backgroundColor || '#fff' }}
-            >
-              {page.elements.length === 0 ? (
-                /* ── Empty state ── */
-                <div className={cn(
-                  'flex flex-col items-center justify-center rounded-lg border-2 border-dashed m-4 transition-colors',
-                  isOver ? 'border-[#1ec8a5] bg-[#f0fdf9] text-[#1ec8a5]' : 'border-gray-200',
-                )} style={{ height: CARD_H - 32 }}>
-                  <span style={{ fontSize: '2rem', lineHeight: 1 }} className="mb-3">📱</span>
-                  <p className="text-sm font-medium text-gray-400 mb-1">ここにエレメントをドロップ</p>
-                  <p className="text-xs text-gray-300">左パネルからエレメントを選択してください</p>
-                </div>
-              ) : (
-                page.elements.map((el, elIdx) => (
-                  <SortableEl
+        {isActive ? (
+          /* Active page: absolute free-form positioning */
+          <div
+            ref={setNodeRef}
+            className={cn('relative', isOver && 'drop-zone-active')}
+            style={{ height: CARD_H, backgroundColor: page.backgroundColor || '#fff', overflow: 'hidden' }}
+            onMouseMove={handleCardMouseMove}
+            onMouseUp={commitDrag}
+          >
+            {page.elements.length === 0 ? (
+              /* Empty state */
+              <div className={cn(
+                'flex flex-col items-center justify-center rounded-lg border-2 border-dashed m-4 transition-colors',
+                isOver ? 'border-[#1ec8a5] bg-[#f0fdf9] text-[#1ec8a5]' : 'border-gray-200',
+              )} style={{ height: CARD_H - 32 }}>
+                <span style={{ fontSize: '2rem', lineHeight: 1 }} className="mb-3">📱</span>
+                <p className="text-sm font-medium text-gray-400 mb-1">ここにエレメントをドロップ</p>
+                <p className="text-xs text-gray-300">左パネルからエレメントを選択してください</p>
+              </div>
+            ) : (
+              page.elements.map((el, index) => {
+                const isSelected = selectedElementId === el.id;
+                const isDragging = dragElemId === el.id;
+                const posX = (dragPos?.id === el.id ? dragPos.x : el.x) ?? 8;
+                const posY = (dragPos?.id === el.id ? dragPos.y : el.y) ?? (index * 60 + 8);
+
+                return (
+                  <div
                     key={el.id}
-                    element={el}
-                    isSelected={selectedElementId === el.id}
-                    onSelect={onSelectElement}
-                    onDelete={onDeleteElement}
-                    onMoveUp={onMoveElementUp}
-                    onMoveDown={onMoveElementDown}
-                    canMoveUp={elIdx > 0}
-                    canMoveDown={elIdx < page.elements.length - 1}
-                  />
-                ))
-              )}
-            </div>
-          </SortableContext>
+                    style={{
+                      position: 'absolute',
+                      left: posX,
+                      top: posY,
+                      width: el.w ?? CARD_W - 16,
+                      height: el.h ?? undefined,
+                      zIndex: el.zIndex ?? (index + 1),
+                      cursor: isDragging ? 'grabbing' : 'grab',
+                      userSelect: 'none',
+                      boxSizing: 'border-box',
+                      transition: isDragging ? 'none' : 'box-shadow 0.15s ease',
+                      boxShadow: isDragging ? '0 8px 24px rgba(0,0,0,0.15)' : 'none',
+                      borderRadius: 6,
+                      outline: isSelected && !isDragging ? '2px solid #1ec8a5' : 'none',
+                      outlineOffset: 2,
+                    }}
+                    onMouseDown={(e) => handleElMouseDown(e, el)}
+                    onClick={(e) => { e.stopPropagation(); onSelectElement(el.id); }}
+                  >
+                    {/* Element label + controls when selected */}
+                    {isSelected && (
+                      <div style={{ position: 'absolute', top: -24, left: 0, display: 'flex', gap: 4, zIndex: 100 }}>
+                        <span style={{ background: '#1ec8a5', color: 'white', fontSize: 10, padding: '2px 6px', borderRadius: 4, fontWeight: 600, whiteSpace: 'nowrap' }}>
+                          {el.type}
+                        </span>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); onBringToFront(el.id); }}
+                          title="前面へ"
+                          style={{ background: '#334155', color: '#94a3b8', fontSize: 10, padding: '2px 4px', borderRadius: 4, cursor: 'pointer' }}
+                        >
+                          ↑
+                        </button>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); onSendToBack(el.id); }}
+                          title="背面へ"
+                          style={{ background: '#334155', color: '#94a3b8', fontSize: 10, padding: '2px 4px', borderRadius: 4, cursor: 'pointer' }}
+                        >
+                          ↓
+                        </button>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); onDeleteElement(el.id); }}
+                          title="削除"
+                          style={{ background: '#ef4444', color: 'white', fontSize: 10, padding: '2px 6px', borderRadius: 4, cursor: 'pointer', marginLeft: 'auto', fontWeight: 700 }}
+                        >
+                          ×
+                        </button>
+                      </div>
+                    )}
+                    <div style={{ pointerEvents: dragElemId ? 'none' : 'auto' }}>
+                      <ElementRenderer element={el} />
+                    </div>
+                    {/* Resize handles when selected and not dragging */}
+                    {isSelected && !dragElemId && (
+                      <ResizeHandles el={el} onResize={onResizeElement} />
+                    )}
+                  </div>
+                );
+              })
+            )}
+          </div>
         ) : (
           /* Static preview for non-selected pages */
           <div className="overflow-hidden pointer-events-none" style={{ height: CARD_H }}>
-            <div className="p-3 space-y-2">
-              {page.elements.map((el) => (
-                <div key={el.id} style={{ transform: 'scale(0.92)', transformOrigin: 'top left' }}>
+            <div className="relative" style={{ height: CARD_H }}>
+              {page.elements.map((el, index) => (
+                <div
+                  key={el.id}
+                  style={{
+                    position: 'absolute',
+                    left: el.x ?? 8,
+                    top: el.y ?? (index * 60 + 8),
+                    width: el.w ?? CARD_W - 16,
+                    height: el.h ?? undefined,
+                    zIndex: el.zIndex ?? (index + 1),
+                    transform: 'scale(0.92)',
+                    transformOrigin: 'top left',
+                  }}
+                >
                   <ElementRenderer element={el} isPreview={false} />
                 </div>
               ))}
@@ -367,7 +456,7 @@ export default function Canvas({ viewMode: _viewMode }: CanvasProps) {
   const {
     project, selectedPageId, selectedElementId,
     selectElement, removeElement, selectPage, addPage, deletePage, renamePage,
-    reorderElements,
+    moveElement, resizeElement, bringToFront, sendToBack,
   } = useBuilderStore();
 
   const [zoom, setZoom] = useState(ZOOM_DEFAULT);
@@ -406,7 +495,8 @@ export default function Canvas({ viewMode: _viewMode }: CanvasProps) {
 
   /* Pan on background drag */
   const onMouseDown = (e: React.MouseEvent) => {
-    if ((e.target as HTMLElement).closest('.canvas-element, button, input, select, textarea')) return;
+    const target = e.target as HTMLElement;
+    if (target.closest('.canvas-element, button, input, select, textarea')) return;
     setPanning(true);
     dragOrigin.current = { mx: e.clientX, my: e.clientY, px: pan.x, py: pan.y };
   };
@@ -418,21 +508,6 @@ export default function Canvas({ viewMode: _viewMode }: CanvasProps) {
     });
   };
   const onMouseUp = () => setPanning(false);
-
-  /* Layer reorder helpers */
-  const handleMoveElementUp = useCallback((elementId: string) => {
-    const page = pages.find((p) => p.id === selectedPageId);
-    if (!page) return;
-    const idx = page.elements.findIndex((e) => e.id === elementId);
-    if (idx > 0) reorderElements(page.id, idx, idx - 1);
-  }, [pages, selectedPageId, reorderElements]);
-
-  const handleMoveElementDown = useCallback((elementId: string) => {
-    const page = pages.find((p) => p.id === selectedPageId);
-    if (!page) return;
-    const idx = page.elements.findIndex((e) => e.id === elementId);
-    if (idx < page.elements.length - 1) reorderElements(page.id, idx, idx + 1);
-  }, [pages, selectedPageId, reorderElements]);
 
   /* Canvas dimensions */
   const contentW = PAD * 2 + (pages.length + 1) * (CARD_W + CARD_GAP);
@@ -482,17 +557,20 @@ export default function Canvas({ viewMode: _viewMode }: CanvasProps) {
             key={page.id}
             page={page}
             index={i}
-            isSelected={selectedPageId === page.id}
+            isActive={selectedPageId === page.id}
             selectedElementId={selectedElementId}
             pageCount={pages.length}
+            zoom={zoom}
             onSelect={() => { selectPage(page.id); selectElement(null); }}
             onSelectElement={selectElement}
             onClickBg={() => selectElement(null)}
             onDelete={() => deletePage(page.id)}
             onRename={(name) => renamePage(page.id, name)}
             onDeleteElement={(id) => removeElement(id)}
-            onMoveElementUp={handleMoveElementUp}
-            onMoveElementDown={handleMoveElementDown}
+            onMoveElement={moveElement}
+            onBringToFront={bringToFront}
+            onSendToBack={sendToBack}
+            onResizeElement={resizeElement}
           />
         ))}
 

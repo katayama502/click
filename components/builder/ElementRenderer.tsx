@@ -88,7 +88,7 @@ function CarouselElement({
     color: props.color || undefined,
     backgroundColor: props.bgColor || undefined,
     borderRadius: props.borderRadius || undefined,
-    width: props.width || undefined,
+    width: props.width || '100%',
     height: props.height || undefined,
   };
 
@@ -148,7 +148,7 @@ function CarouselElement({
       {items.length > 1 && (
         <>
           <button
-            className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-white/80 hover:bg-white rounded-full flex items-center justify-center shadow transition-colors"
+            className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-white/80 hover:bg-white rounded-full flex items-center justify-center shadow transition-colors duration-150"
             onClick={prev}
           >
             <svg className="w-4 h-4 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -156,7 +156,7 @@ function CarouselElement({
             </svg>
           </button>
           <button
-            className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-white/80 hover:bg-white rounded-full flex items-center justify-center shadow transition-colors"
+            className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-white/80 hover:bg-white rounded-full flex items-center justify-center shadow transition-colors duration-150"
             onClick={next}
           >
             <svg className="w-4 h-4 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -200,6 +200,7 @@ function StepperElement({
     fontSize: props.fontSize || undefined,
     padding: props.padding || undefined,
     margin: props.margin || undefined,
+    width: '100%',
   };
 
   return (
@@ -210,7 +211,7 @@ function StepperElement({
       <div className="flex items-center gap-0 border border-gray-300 rounded-lg overflow-hidden w-fit">
         <button
           className={cn(
-            'w-10 h-10 flex items-center justify-center text-gray-600 bg-gray-50 transition-colors text-lg font-medium border-r border-gray-300',
+            'w-10 h-10 flex items-center justify-center text-gray-600 bg-gray-50 transition-colors duration-150 text-lg font-medium border-r border-gray-300',
             val <= min ? 'opacity-40 cursor-not-allowed' : 'hover:bg-gray-100 cursor-pointer'
           )}
           onClick={decrement}
@@ -223,7 +224,7 @@ function StepperElement({
         </span>
         <button
           className={cn(
-            'w-10 h-10 flex items-center justify-center text-gray-600 bg-gray-50 transition-colors text-lg font-medium border-l border-gray-300',
+            'w-10 h-10 flex items-center justify-center text-gray-600 bg-gray-50 transition-colors duration-150 text-lg font-medium border-l border-gray-300',
             val >= max ? 'opacity-40 cursor-not-allowed' : 'hover:bg-gray-100 cursor-pointer'
           )}
           onClick={increment}
@@ -254,6 +255,7 @@ function ToggleElement({
     fontSize: props.fontSize || undefined,
     padding: props.padding || undefined,
     margin: props.margin || undefined,
+    width: '100%',
   };
 
   return (
@@ -301,6 +303,7 @@ function RatingElement({
     fontSize: props.fontSize || undefined,
     padding: props.padding || undefined,
     margin: props.margin || undefined,
+    width: '100%',
   };
 
   return (
@@ -374,7 +377,7 @@ function FormElement({ el, isPreview }: { el: AppElement; isPreview?: boolean })
   }
 
   return (
-    <div className="rounded-xl border border-gray-200 bg-white overflow-hidden shadow-sm">
+    <div className="rounded-xl border border-gray-200 bg-white overflow-hidden shadow-sm w-full">
       {formTitle && (
         <div className="px-4 py-3 border-b border-gray-100 bg-gray-50">
           <h3 className="text-sm font-semibold text-gray-800">{formTitle}</h3>
@@ -395,14 +398,14 @@ function FormElement({ el, isPreview }: { el: AppElement; isPreview?: boolean })
                 value={isPreview ? (values[field.id] ?? '') : ''}
                 onChange={isPreview ? (e) => setValues(v => ({ ...v, [field.id]: e.target.value })) : undefined}
                 readOnly={!isPreview}
-                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg outline-none focus:border-blue-400"
+                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl outline-none focus:border-[#1ec8a5] focus:ring-2 focus:ring-[#1ec8a5]/10 transition-all duration-150"
               />
             </div>
           ))
         )}
         <button
           onClick={isPreview ? () => setSubmitted(true) : undefined}
-          className="w-full py-2.5 bg-[#1ec8a5] text-white text-sm font-medium rounded-lg mt-2 hover:bg-[#17b394] transition-colors"
+          className="w-full py-2.5 bg-[#1ec8a5] text-white text-sm font-medium rounded-lg mt-2 hover:bg-[#17b394] transition-all duration-150"
         >
           {formSubmitLabel}
         </button>
@@ -428,13 +431,14 @@ export default function ElementRenderer({
     padding: props.padding || undefined,
     margin: props.margin || undefined,
     borderRadius: props.borderRadius || undefined,
-    width: props.width || undefined,
+    width: props.width || '100%',
     height: props.height || undefined,
     textAlign: props.align || undefined,
   };
 
+  // Mobile-style input base with rounded corners and subtle focus ring
   const inputBase =
-    'w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-700 outline-none focus:border-[#1ec8a5] focus:ring-2 focus:ring-[#e6faf5] bg-white';
+    'w-full border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-700 outline-none focus:border-[#1ec8a5] focus:ring-2 focus:ring-[#1ec8a5]/10 transition-all duration-150';
 
   switch (type) {
     /* ─────────────── ベーシック ─────────────── */
@@ -471,23 +475,32 @@ export default function ElementRenderer({
       ) : (
         <div
           style={baseStyle}
-          className="bg-gray-100 border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center py-8 px-4"
+          className="bg-gradient-to-br from-gray-100 to-gray-200 border-2 border-dashed border-gray-300 rounded-xl flex flex-col items-center justify-center py-10 px-4"
         >
-          <svg
-            className="w-8 h-8 text-gray-400 mb-2"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={1.5}
-              d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
-            />
-          </svg>
-          <span className="text-gray-400 text-xs">
-            {props.alt || '画像URLを設定してください'}
+          <div className="w-12 h-12 rounded-full bg-gray-200 flex items-center justify-center mb-3">
+            <svg
+              className="w-6 h-6 text-gray-400"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={1.5}
+                d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"
+              />
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={1.5}
+                d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"
+              />
+            </svg>
+          </div>
+          <span className="text-gray-500 text-sm font-medium">画像を設定</span>
+          <span className="text-gray-400 text-xs mt-1">
+            {props.alt || 'URLを入力してください'}
           </span>
         </div>
       );
@@ -496,10 +509,14 @@ export default function ElementRenderer({
     case 'video': {
       const safeVideo =
         props.videoUrl && isSafeUrl(props.videoUrl) ? props.videoUrl : null;
+      const videoStyle: React.CSSProperties = {
+        ...baseStyle,
+        backgroundColor: props.bgColor || '#111827',
+      };
       return (
         <div
-          style={baseStyle}
-          className="rounded-xl overflow-hidden bg-gray-900 relative aspect-video flex items-center justify-center"
+          style={videoStyle}
+          className="rounded-xl overflow-hidden relative aspect-video flex items-center justify-center"
         >
           {safeVideo ? (
             <iframe
@@ -509,27 +526,29 @@ export default function ElementRenderer({
               allowFullScreen
             />
           ) : (
-            <div className="text-center">
-              <svg
-                className="w-12 h-12 text-gray-500 mx-auto mb-2"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={1.5}
-                  d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"
-                />
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={1.5}
-                  d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                />
-              </svg>
-              <span className="text-gray-500 text-xs">動画URLを設定してください</span>
+            <div className="text-center px-4">
+              <div className="w-14 h-14 rounded-full bg-white/10 flex items-center justify-center mx-auto mb-3">
+                <svg
+                  className="w-7 h-7 text-white/70"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={1.5}
+                    d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"
+                  />
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={1.5}
+                    d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                  />
+                </svg>
+              </div>
+              <span className="text-white/60 text-sm font-medium">動画URLを設定</span>
             </div>
           )}
         </div>
@@ -545,6 +564,7 @@ export default function ElementRenderer({
             borderColor: props.color || undefined,
             borderTopWidth: `${thickness}px`,
             borderTopStyle: divStyle,
+            width: '100%',
           }}
           className="border-gray-200 my-2"
         />
@@ -554,7 +574,7 @@ export default function ElementRenderer({
     case 'spacer':
       return (
         <div
-          style={{ height: `${props.spacerHeight ?? 24}px` }}
+          style={{ height: `${props.spacerHeight ?? 24}px`, width: '100%' }}
           className="relative"
         >
           {!isPreview && (
@@ -590,14 +610,14 @@ export default function ElementRenderer({
       const variant = props.variant || 'primary';
       const size = props.size || 'md';
       const variantClasses: Record<string, string> = {
-        primary: 'bg-[#1ec8a5] text-white hover:bg-[#13a98a]',
-        secondary: 'bg-gray-200 text-gray-800 hover:bg-gray-300',
-        outline: 'border-2 border-[#1ec8a5] text-[#1ec8a5] hover:bg-[#e6faf5]',
-        ghost: 'text-[#1ec8a5] hover:bg-[#e6faf5]',
+        primary: 'bg-[#1ec8a5] text-white hover:bg-[#13a98a] active:scale-[0.98]',
+        secondary: 'bg-gray-200 text-gray-800 hover:bg-gray-300 active:scale-[0.98]',
+        outline: 'border-2 border-[#1ec8a5] text-[#1ec8a5] hover:bg-[#e6faf5] active:scale-[0.98]',
+        ghost: 'text-[#1ec8a5] hover:bg-[#e6faf5] active:scale-[0.98]',
       };
       const sizeClasses: Record<string, string> = {
-        sm: 'text-xs px-3 py-1.5 rounded-md',
-        md: 'text-sm px-5 py-2.5 rounded-lg',
+        sm: 'text-xs px-3 py-1.5 rounded-lg',
+        md: 'text-sm px-5 py-2.5 rounded-xl',
         lg: 'text-base px-7 py-3 rounded-xl',
       };
       const safeHref =
@@ -632,7 +652,7 @@ export default function ElementRenderer({
             rel="noopener noreferrer"
             style={baseStyle}
             className={cn(
-              'inline-block font-semibold transition-colors duration-150 text-center',
+              'block font-semibold transition-all duration-150 text-center w-full cursor-pointer',
               variantClasses[variant],
               sizeClasses[size]
             )}
@@ -645,7 +665,7 @@ export default function ElementRenderer({
         <button
           style={baseStyle}
           className={cn(
-            'font-semibold transition-colors duration-150 cursor-pointer',
+            'font-semibold transition-all duration-150 cursor-pointer w-full text-center',
             variantClasses[variant],
             sizeClasses[size]
           )}
@@ -670,7 +690,7 @@ export default function ElementRenderer({
         <button
           style={baseStyle}
           className={cn(
-            'rounded-xl bg-[#e6faf5] text-[#1ec8a5] hover:bg-[#1ec8a5] hover:text-white transition-colors flex items-center justify-center font-semibold',
+            'rounded-xl bg-[#e6faf5] text-[#1ec8a5] hover:bg-[#1ec8a5] hover:text-white transition-all duration-150 flex items-center justify-center font-semibold',
             sizeMap[size]
           )}
           onClick={(e) => e.preventDefault()}
@@ -799,7 +819,7 @@ export default function ElementRenderer({
           )}
           <div className="relative">
             <select
-              className={cn(inputBase, 'appearance-none pr-10')}
+              className={cn(inputBase, 'appearance-none pr-10 cursor-pointer')}
               disabled={!isPreview}
             >
               <option value="">{props.placeholder || '選択してください'}</option>
@@ -878,7 +898,7 @@ export default function ElementRenderer({
               {props.label}
             </label>
           )}
-          <div className="border-2 border-dashed border-gray-300 rounded-xl p-6 text-center hover:border-[#1ec8a5] transition-colors cursor-pointer">
+          <div className="border-2 border-dashed border-gray-300 rounded-xl p-6 text-center hover:border-[#1ec8a5] transition-colors duration-150 cursor-pointer">
             <svg
               className="w-8 h-8 text-gray-400 mx-auto mb-2"
               fill="none"
@@ -912,7 +932,7 @@ export default function ElementRenderer({
         <div
           style={baseStyle}
           className={cn(
-            'bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden',
+            'bg-white border border-gray-200 rounded-2xl shadow-sm hover:shadow-md transition-shadow duration-200 overflow-hidden',
             !props.padding && !safeImageSrc && 'p-4'
           )}
         >
@@ -924,8 +944,8 @@ export default function ElementRenderer({
               className="w-full h-40 object-cover"
             />
           )}
-          <div className={cn(safeImageSrc && 'p-4', !safeImageSrc && !props.padding && '')}>
-            <div className="font-semibold text-gray-900 text-sm mb-1">
+          <div className={cn(safeImageSrc ? 'p-4' : '')}>
+            <div className="font-semibold text-gray-900 text-sm mb-1 leading-snug">
               {props.text || 'カードタイトル'}
             </div>
             {props.subtitle ? (
@@ -936,7 +956,7 @@ export default function ElementRenderer({
               </p>
             )}
             {props.buttonText && (
-              <button className="mt-3 w-full bg-[#1ec8a5] text-white text-xs font-semibold py-2 rounded-lg hover:bg-[#13a98a] transition-colors">
+              <button className="mt-3 w-full bg-[#1ec8a5] text-white text-xs font-semibold py-2 rounded-xl hover:bg-[#13a98a] transition-all duration-150 active:scale-[0.98]">
                 {props.buttonText}
               </button>
             )}
@@ -951,13 +971,41 @@ export default function ElementRenderer({
         { id: '2', icon: '⭐', title: 'リスト項目 2' },
         { id: '3', icon: '🎯', title: 'リスト項目 3', subtitle: 'サブテキスト' },
       ];
+      const isHorizontal = (props as Record<string, unknown>).horizontal === true;
+
+      if (isHorizontal) {
+        return (
+          <div
+            style={baseStyle}
+            className="flex flex-row gap-3 overflow-x-auto pb-1"
+          >
+            {items.map((item) => (
+              <div
+                key={item.id}
+                className="flex-shrink-0 w-28 bg-white border border-gray-200 rounded-xl p-3 flex flex-col items-center gap-1.5 hover:shadow-md transition-shadow duration-150 cursor-pointer"
+              >
+                {item.icon && (
+                  <span className="text-2xl leading-none">{item.icon}</span>
+                )}
+                <div className="text-xs font-medium text-gray-900 text-center truncate w-full">
+                  {item.title}
+                </div>
+                {item.subtitle && (
+                  <div className="text-xs text-gray-500 text-center truncate w-full">{item.subtitle}</div>
+                )}
+              </div>
+            ))}
+          </div>
+        );
+      }
+
       return (
         <ul
           style={baseStyle}
           className="divide-y divide-gray-100 border border-gray-200 rounded-xl overflow-hidden bg-white"
         >
           {items.map((item) => (
-            <li key={item.id} className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors">
+            <li key={item.id} className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors duration-150">
               {item.icon && (
                 <span className="text-lg leading-none">{item.icon}</span>
               )}
@@ -1025,7 +1073,7 @@ export default function ElementRenderer({
                 <tr
                   key={row.id}
                   className={cn(
-                    'hover:bg-blue-50/30 transition-colors',
+                    'hover:bg-blue-50/30 transition-colors duration-150',
                     rowIdx % 2 === 1 && 'bg-gray-50'
                   )}
                 >
@@ -1150,7 +1198,7 @@ export default function ElementRenderer({
             >
               {tag}
               {isPreview && (
-                <button className="text-[#1ec8a5] hover:text-[#13a98a]">
+                <button className="text-[#1ec8a5] hover:text-[#13a98a] transition-colors duration-150">
                   <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path
                       strokeLinecap="round"
@@ -1175,6 +1223,40 @@ export default function ElementRenderer({
         { id: '4', icon: '👤', label: 'プロフィール' },
       ];
       const activeIndex = props.navActiveIndex ?? 0;
+
+      // Detect nav type: 'top' for header bar with back arrow + title
+      const navType = (props as Record<string, unknown>).navType as string | undefined;
+      const isTopNav = navType === 'top' || element.props.label?.includes('トップ');
+
+      if (isTopNav) {
+        const title = props.text || props.label || 'タイトル';
+        return (
+          <nav
+            style={baseStyle}
+            className="flex items-center gap-3 bg-white border-b border-gray-200 px-4 py-3 shadow-sm"
+          >
+            <button
+              className="w-8 h-8 rounded-full hover:bg-gray-100 flex items-center justify-center transition-colors duration-150 shrink-0"
+              onClick={(e) => e.preventDefault()}
+            >
+              <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
+            </button>
+            <span className="flex-1 text-base font-semibold text-gray-900 truncate">{title}</span>
+            {navItems.length > 0 && navItems[0].icon && (
+              <button
+                className="w-8 h-8 rounded-full hover:bg-gray-100 flex items-center justify-center transition-colors duration-150 shrink-0"
+                onClick={(e) => e.preventDefault()}
+              >
+                <span className="text-lg leading-none">{navItems[0].icon}</span>
+              </button>
+            )}
+          </nav>
+        );
+      }
+
+      // Default: bottom tab bar
       return (
         <nav
           style={baseStyle}
@@ -1186,7 +1268,7 @@ export default function ElementRenderer({
               <button
                 key={item.id}
                 className={cn(
-                  'flex flex-col items-center gap-0.5 px-3 transition-colors relative',
+                  'flex flex-col items-center gap-0.5 px-3 transition-colors duration-150 relative',
                   isActive ? 'text-[#1ec8a5]' : 'text-gray-500 hover:text-[#1ec8a5]'
                 )}
                 onClick={(e) => e.preventDefault()}

@@ -83,6 +83,10 @@ interface BuilderStore {
   addElement: (element: AppElement, pageId?: string) => void;
   updateElement: (elementId: string, props: Partial<AppElement['props']>) => void;
   updateElementRoot: (elementId: string, patch: Partial<Pick<AppElement, 'clickActions' | 'visibilityMode' | 'visibilityConditions'>>) => void;
+  moveElement: (elementId: string, x: number, y: number) => void;
+  resizeElement: (elementId: string, w: number | undefined, h: number | undefined) => void;
+  bringToFront: (elementId: string, pageId?: string) => void;
+  sendToBack: (elementId: string, pageId?: string) => void;
   removeElement: (elementId: string, pageId?: string) => void;
   selectElement: (elementId: string | null) => void;
   reorderElements: (pageId: string, fromIndex: number, toIndex: number) => void;
@@ -191,9 +195,19 @@ export const useBuilderStore = create<BuilderStore>((set, get) => ({
     const targetPageId = pageId ?? selectedPageId ?? project.pages[0]?.id;
     if (!targetPageId) return;
 
+    // Auto-cascade default position if not already set
+    const targetPage = project.pages.find((p) => p.id === targetPageId);
+    const existingCount = targetPage?.elements.length ?? 0;
+    const elementWithPosition: AppElement = {
+      ...element,
+      x: element.x ?? 8,
+      y: element.y ?? Math.min(8 + existingCount * 60, 480),
+      zIndex: element.zIndex ?? existingCount + 1,
+    };
+
     const updatedPages = project.pages.map((page) => {
       if (page.id !== targetPageId) return page;
-      return { ...page, elements: [...page.elements, element] };
+      return { ...page, elements: [...page.elements, elementWithPosition] };
     });
 
     const updated: AppProject = {
@@ -202,7 +216,7 @@ export const useBuilderStore = create<BuilderStore>((set, get) => ({
       updatedAt: new Date().toISOString(),
     };
     saveToLocalStorage(updated);
-    set({ project: updated, selectedElementId: element.id, ...pushHistory(state, project) });
+    set({ project: updated, selectedElementId: elementWithPosition.id, ...pushHistory(state, project) });
   },
 
   updateElement: (elementId, props) => {
@@ -238,6 +252,100 @@ export const useBuilderStore = create<BuilderStore>((set, get) => ({
       const updatedElements = page.elements.map((el) => {
         if (el.id !== elementId) return el;
         return { ...el, ...patch };
+      });
+      return { ...page, elements: updatedElements };
+    });
+
+    const updated: AppProject = {
+      ...project,
+      pages: updatedPages,
+      updatedAt: new Date().toISOString(),
+    };
+    saveToLocalStorage(updated);
+    set({ project: updated });
+  },
+
+  moveElement: (elementId, x, y) => {
+    const state = get();
+    const { project } = state;
+    if (!project) return;
+
+    const updatedPages = project.pages.map((page) => {
+      const updatedElements = page.elements.map((el) => {
+        if (el.id !== elementId) return el;
+        return { ...el, x, y };
+      });
+      return { ...page, elements: updatedElements };
+    });
+
+    const updated: AppProject = {
+      ...project,
+      pages: updatedPages,
+      updatedAt: new Date().toISOString(),
+    };
+    saveToLocalStorage(updated);
+    set({ project: updated });
+  },
+
+  resizeElement: (elementId, w, h) => {
+    const state = get();
+    const { project } = state;
+    if (!project) return;
+
+    const updatedPages = project.pages.map((page) => {
+      const updatedElements = page.elements.map((el) => {
+        if (el.id !== elementId) return el;
+        return { ...el, w, h };
+      });
+      return { ...page, elements: updatedElements };
+    });
+
+    const updated: AppProject = {
+      ...project,
+      pages: updatedPages,
+      updatedAt: new Date().toISOString(),
+    };
+    saveToLocalStorage(updated);
+    set({ project: updated });
+  },
+
+  bringToFront: (elementId, pageId) => {
+    const state = get();
+    const { project, selectedPageId } = state;
+    if (!project) return;
+    const targetPageId = pageId ?? selectedPageId ?? project.pages[0]?.id;
+
+    const updatedPages = project.pages.map((page) => {
+      if (page.id !== targetPageId) return page;
+      const maxZ = page.elements.reduce((max, el) => Math.max(max, el.zIndex ?? 0), 0);
+      const updatedElements = page.elements.map((el) => {
+        if (el.id !== elementId) return el;
+        return { ...el, zIndex: maxZ + 1 };
+      });
+      return { ...page, elements: updatedElements };
+    });
+
+    const updated: AppProject = {
+      ...project,
+      pages: updatedPages,
+      updatedAt: new Date().toISOString(),
+    };
+    saveToLocalStorage(updated);
+    set({ project: updated });
+  },
+
+  sendToBack: (elementId, pageId) => {
+    const state = get();
+    const { project, selectedPageId } = state;
+    if (!project) return;
+    const targetPageId = pageId ?? selectedPageId ?? project.pages[0]?.id;
+
+    const updatedPages = project.pages.map((page) => {
+      if (page.id !== targetPageId) return page;
+      const minZ = page.elements.reduce((min, el) => Math.min(min, el.zIndex ?? 0), 0);
+      const updatedElements = page.elements.map((el) => {
+        if (el.id !== elementId) return el;
+        return { ...el, zIndex: Math.max(minZ - 1, 0) };
       });
       return { ...page, elements: updatedElements };
     });

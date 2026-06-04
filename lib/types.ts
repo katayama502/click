@@ -129,6 +129,13 @@ export interface VisibilityCondition {
 export interface AppElement {
   id: string;
   type: ElementType;
+  // Absolute position on canvas (px)
+  x?: number;
+  y?: number;
+  // Size (px or 'auto')
+  w?: number;  // width in px, undefined = auto
+  h?: number;  // height in px, undefined = auto
+  zIndex?: number;
   // Click Flow
   clickActions?: ClickAction[];
   // 表示設定

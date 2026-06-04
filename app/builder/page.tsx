@@ -120,7 +120,7 @@ export default function BuilderPage() {
   const router = useRouter();
   const {
     project, selectedPageId, selectedElementId, initProject,
-    addElement, reorderElements, addPage, selectPage,
+    addElement, addPage, selectPage,
     renamePage, deletePage, undo, redo, canUndo, canRedo, updateProjectName,
   } = useBuilderStore();
 
@@ -135,9 +135,15 @@ export default function BuilderPage() {
   const [pageNameInput, setPageNameInput] = useState('');
   const [hoveredPageId, setHoveredPageId] = useState<string | null>(null);
   const [themeColor, setThemeColor] = useState('#1ec8a5');
+  const [snapToGrid, setSnapToGrid] = useState(false);
 
   useEffect(() => { initProject(); }, [initProject]);
   useEffect(() => { if (project?.name) setNameInput(project.name); }, [project?.name]);
+
+  /* Apply theme color as CSS variable */
+  useEffect(() => {
+    document.documentElement.style.setProperty('--accent', themeColor);
+  }, [themeColor]);
 
   /* Global keyboard shortcuts */
   useEffect(() => {
@@ -178,21 +184,17 @@ export default function BuilderPage() {
     const { active, over } = event;
     setActiveDragType(null);
     if (!over) return;
+
     const isFromPalette = active.data.current?.isPalette;
     const isCanvas = over.id === 'canvas-drop-zone' || over.data.current?.isCanvas;
+
     if (isFromPalette && isCanvas) {
       const el = createDefaultElement(active.data.current?.type as ElementType);
       addElement(el);
       return;
     }
-    if (!isFromPalette && active.id !== over.id) {
-      const page = project?.pages.find((p) => p.id === selectedPageId);
-      if (!page) return;
-      const from = page.elements.findIndex((el) => el.id === active.id);
-      const to = page.elements.findIndex((el) => el.id === over.id);
-      if (from !== -1 && to !== -1) reorderElements(page.id, from, to);
-    }
-  }, [project, selectedPageId, addElement, reorderElements]);
+    // Canvas handles its own repositioning — no reorderElements here
+  }, [addElement]);
 
   const handleNameSubmit = () => {
     if (nameInput.trim()) updateProjectName(nameInput.trim());
@@ -218,11 +220,12 @@ export default function BuilderPage() {
   const undoable = canUndo();
   const redoable = canRedo();
 
+  /* ─── Polished loading skeleton ─── */
   if (!project) return (
-    <div className="flex items-center justify-center h-screen bg-slate-900">
-      <div className="text-center">
-        <div className="w-8 h-8 border-2 border-[#1ec8a5] border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-        <p className="text-slate-400 text-sm">読み込み中...</p>
+    <div className="flex items-center justify-center h-screen bg-[#0f172a]">
+      <div className="text-center space-y-4">
+        <div className="w-12 h-12 mx-auto rounded-2xl bg-gradient-to-br from-[#1ec8a5] to-[#13a98a] animate-pulse" />
+        <p className="text-slate-400 text-sm font-medium">読み込み中...</p>
       </div>
     </div>
   );
@@ -239,7 +242,7 @@ export default function BuilderPage() {
 
         {/* ── Toolbar ── */}
         <header className="h-12 bg-[#0f172a] border-b border-slate-800 flex items-center px-3 gap-3 flex-shrink-0 z-10">
-          {/* Back + Logo */}
+          {/* Back button */}
           <button onClick={() => router.push('/')}
             className="flex items-center gap-1.5 text-slate-400 hover:text-slate-200 transition-colors text-sm shrink-0 pr-2 border-r border-slate-700">
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -247,23 +250,47 @@ export default function BuilderPage() {
             </svg>
           </button>
 
+          {/* Logo mark */}
           <div className="w-5 h-5 rounded-md bg-gradient-to-br from-[#1ec8a5] to-[#13a98a] flex items-center justify-center shrink-0">
             <span className="text-white text-[9px] font-black">C</span>
           </div>
 
-          {/* App name */}
-          {editingName ? (
-            <input type="text" value={nameInput} onChange={(e) => setNameInput(e.target.value)}
-              onBlur={handleNameSubmit} autoFocus maxLength={100}
-              onKeyDown={(e) => { if (e.key === 'Enter') handleNameSubmit(); if (e.key === 'Escape') setEditingName(false); }}
-              className="bg-slate-800 text-slate-200 text-sm font-semibold px-2 py-0.5 rounded border border-[#1ec8a5] outline-none w-40" />
-          ) : (
-            <button onClick={() => setEditingName(true)}
-              className="text-slate-200 text-sm font-semibold hover:text-white transition-colors truncate max-w-32" title="クリックして編集">
-              {project.name}
-            </button>
-          )}
+          {/* App name — inline editable */}
+          <div className="flex items-center gap-1.5">
+            {editingName ? (
+              <input
+                type="text"
+                value={nameInput}
+                onChange={(e) => setNameInput(e.target.value)}
+                onBlur={handleNameSubmit}
+                autoFocus
+                maxLength={100}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') handleNameSubmit();
+                  if (e.key === 'Escape') setEditingName(false);
+                }}
+                className="bg-slate-800 text-slate-200 text-sm font-semibold px-2 py-0.5 rounded border border-[#1ec8a5] outline-none w-40"
+              />
+            ) : (
+              <button
+                onClick={() => setEditingName(true)}
+                className="flex items-center gap-1.5 text-slate-200 text-sm font-semibold hover:text-white transition-colors group"
+                title="クリックして編集"
+              >
+                <span className="truncate max-w-32">{project.name}</span>
+                {/* Pencil icon — appears on hover */}
+                <svg
+                  className="w-3 h-3 text-slate-600 group-hover:text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity"
+                  fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                    d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                </svg>
+              </button>
+            )}
+          </div>
 
+          {/* Sub-actions */}
           <div className="flex items-center gap-1 border-l border-slate-700 pl-2 ml-1">
             <button className="text-xs text-slate-400 hover:text-slate-200 border border-slate-600 hover:border-slate-400 px-2 py-1 rounded transition-colors">
               設定
@@ -294,7 +321,7 @@ export default function BuilderPage() {
             ))}
           </div>
 
-          {/* Center: Canvas/Database mode switch */}
+          {/* Center: Canvas / Database mode switch */}
           <div className="flex items-center bg-slate-800 rounded-lg p-0.5 mx-auto">
             <button
               onClick={() => setMainMode('canvas')}
@@ -320,15 +347,20 @@ export default function BuilderPage() {
             </button>
           </div>
 
-          {/* View mode */}
+          {/* View mode toggle — green gradient active state */}
           <div className="flex items-center bg-slate-800 rounded-lg p-0.5 gap-0.5">
             {([
-              { mode: 'mobile'  as ViewMode, w: '375', label: 'モバイル',   path: 'M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z' },
-              { mode: 'tablet'  as ViewMode, w: '768', label: 'タブレット', path: 'M12 18h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z' },
-              { mode: 'desktop' as ViewMode, w: '100%',label: 'デスクトップ',path: 'M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17H3a2 2 0 01-2-2V5a2 2 0 012-2h14a2 2 0 012 2v10a2 2 0 01-2 2h-2' },
+              { mode: 'mobile'   as ViewMode, label: 'モバイル',    path: 'M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z' },
+              { mode: 'tablet'   as ViewMode, label: 'タブレット',  path: 'M12 18h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z' },
+              { mode: 'desktop'  as ViewMode, label: 'デスクトップ', path: 'M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17H3a2 2 0 01-2-2V5a2 2 0 012-2h14a2 2 0 012 2v10a2 2 0 01-2 2h-2' },
             ] as const).map(({ mode, label, path }) => (
               <button key={mode} onClick={() => setViewMode(mode)} title={label}
-                className={cn('p-1.5 rounded-md transition-colors', viewMode === mode ? 'bg-[#1ec8a5] text-white' : 'text-slate-500 hover:text-slate-300')}>
+                className={cn(
+                  'p-1.5 rounded-md transition-all',
+                  viewMode === mode
+                    ? 'bg-gradient-to-br from-[#1ec8a5] to-[#13a98a] text-white shadow-sm'
+                    : 'text-slate-500 hover:text-slate-300'
+                )}>
                 <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={path} />
                 </svg>
@@ -336,24 +368,70 @@ export default function BuilderPage() {
             ))}
           </div>
 
+          {/* Snap-to-grid toggle */}
+          <button
+            onClick={() => setSnapToGrid((v) => !v)}
+            title={snapToGrid ? 'グリッドスナップON' : 'グリッドスナップOFF'}
+            className={cn(
+              'p-1.5 rounded-md transition-all border',
+              snapToGrid
+                ? 'bg-gradient-to-br from-[#1ec8a5] to-[#13a98a] text-white border-transparent shadow-sm'
+                : 'text-slate-500 border-slate-700 hover:text-slate-300 hover:border-slate-500'
+            )}
+          >
+            {/* Grid icon */}
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                d="M4 6h16M4 10h16M4 14h16M4 18h16M8 4v16M12 4v16M16 4v16" />
+            </svg>
+          </button>
+
           {/* Actions */}
           <div className="flex items-center gap-2">
-            <button onClick={() => project && window.open(`/preview/${project.id}`, '_blank')}
-              className="flex items-center gap-1.5 text-xs font-medium text-slate-300 hover:text-white bg-slate-700 hover:bg-slate-600 border border-slate-600 hover:border-slate-500 px-3 py-1.5 rounded-lg transition-all active:scale-95">
+            {/* Preview — prominent */}
+            <button
+              onClick={() => project && window.open(`/preview/${project.id}`, '_blank')}
+              className="flex items-center gap-1.5 text-xs font-medium text-slate-200 hover:text-white bg-slate-700 hover:bg-slate-600 border border-slate-600 hover:border-slate-400 px-3 py-1.5 rounded-lg transition-all active:scale-95 hover:shadow-md"
+            >
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0zM2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                  d="M15 12a3 3 0 11-6 0 3 3 0 016 0zM2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
               </svg>
               プレビュー
             </button>
-            <button onClick={handlePublish} disabled={isPublishing}
-              className="flex items-center gap-1.5 text-xs font-bold text-white disabled:opacity-70 px-4 py-1.5 rounded-lg transition-all active:scale-95 shadow-md hover:shadow-lg"
-              style={{ background: isPublishing ? '#13a98a' : 'linear-gradient(135deg, #1ec8a5 0%, #13a98a 50%, #0e8a72 100%)', boxShadow: '0 2px 8px rgba(30,200,165,0.4)' }}>
+
+            {/* Publish — gradient with pulse when idle */}
+            <button
+              onClick={handlePublish}
+              disabled={isPublishing}
+              className={cn(
+                'relative flex items-center gap-1.5 text-xs font-bold text-white disabled:opacity-70 px-4 py-1.5 rounded-lg transition-all active:scale-95 shadow-md hover:shadow-lg',
+                !isPublishing && 'hover:brightness-110'
+              )}
+              style={{
+                background: isPublishing
+                  ? '#13a98a'
+                  : 'linear-gradient(135deg, #1ec8a5 0%, #13a98a 50%, #0e8a72 100%)',
+                boxShadow: '0 2px 8px rgba(30,200,165,0.4)',
+              }}
+            >
+              {/* Pulse ring when idle */}
+              {!isPublishing && (
+                <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-[#1ec8a5] animate-ping opacity-60" />
+              )}
               {isPublishing ? (
-                <><div className="w-3 h-3 border border-white border-t-transparent rounded-full animate-spin" />公開中...</>
+                <>
+                  <div className="w-3 h-3 border border-white border-t-transparent rounded-full animate-spin" />
+                  公開中...
+                </>
               ) : (
-                <><svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                </svg>公開する</>
+                <>
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                      d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                  </svg>
+                  公開する
+                </>
               )}
             </button>
           </div>
@@ -391,8 +469,9 @@ export default function BuilderPage() {
 
               {sidebarTab === 'pages' && (
                 <div className="flex flex-col h-full">
-                  <div className="p-3 border-b border-slate-700">
+                  <div className="p-3 border-b border-slate-700 flex items-center justify-between">
                     <p className="text-slate-200 font-semibold text-xs uppercase tracking-widest">ページ一覧</p>
+                    <span className="text-slate-500 text-[10px]">{project.pages.length}ページ</span>
                   </div>
                   <div className="flex-1 overflow-y-auto p-2 space-y-0.5">
                     {project.pages.map((page) => (
@@ -413,25 +492,34 @@ export default function BuilderPage() {
                             selectedPageId === page.id
                               ? 'bg-[#1ec8a5]/15 text-[#1ec8a5] border border-[#1ec8a5]/20'
                               : 'text-slate-400 hover:bg-slate-700 hover:text-slate-200')}>
+                            {/* Page icon with element count badge */}
+                            <div className="relative shrink-0">
+                              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                                  d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                              </svg>
+                            </div>
                             <button onClick={() => selectPage(page.id)}
                               onDoubleClick={() => { setEditingPageId(page.id); setPageNameInput(page.name); }}
                               title="ダブルクリックでリネーム"
                               className="flex-1 text-left flex items-center gap-2 min-w-0">
-                              <svg className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                              </svg>
                               <span className="flex-1 truncate">{page.name}</span>
                               {page.pageType === 'modal' && (
                                 <span className="text-[9px] font-bold bg-purple-500/20 text-purple-400 px-1 py-0.5 rounded leading-none shrink-0">M</span>
                               )}
                             </button>
-                            {/* Settings gear icon — shows on hover */}
+                            {/* Element count badge */}
+                            <span className="text-[9px] font-medium bg-slate-700 text-slate-400 px-1.5 py-0.5 rounded-full leading-none shrink-0">
+                              {page.elements.length}個
+                            </span>
+                            {/* Settings gear icon */}
                             <button
                               onClick={(e) => { e.stopPropagation(); selectPage(page.id); setSidebarTab('theme'); }}
                               title="ページ設定"
                               className="opacity-0 group-hover/page:opacity-100 transition-opacity text-slate-500 hover:text-slate-300 shrink-0">
                               <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                                  d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                               </svg>
                             </button>
@@ -491,6 +579,19 @@ export default function BuilderPage() {
                         ))}
                       </div>
                     </div>
+                    {/* Apply theme button */}
+                    <button
+                      onClick={() => {
+                        document.documentElement.style.setProperty('--accent', themeColor);
+                      }}
+                      className="w-full py-2 rounded-lg text-xs font-bold text-white transition-all active:scale-95 hover:brightness-110"
+                      style={{
+                        background: `linear-gradient(135deg, ${themeColor} 0%, ${themeColor}bb 100%)`,
+                        boxShadow: `0 2px 8px ${themeColor}55`,
+                      }}
+                    >
+                      テーマを適用
+                    </button>
                     <div>
                       <label className="prop-label mb-2">背景色</label>
                       <div className="grid grid-cols-4 gap-1.5">
