@@ -797,6 +797,8 @@ export default function CanvasElement({
     <div
       style={posStyle}
       onMouseDown={handleMouseDown}
+      onClick={e => e.stopPropagation()}
+      data-element="true"
       className={cn(
         'group select-none',
         isSelected ? 'cursor-move' : 'cursor-pointer',

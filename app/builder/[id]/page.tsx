@@ -213,6 +213,74 @@ export default function BuilderPage({ params }: { params: { id: string } }) {
   const [paletteSearch, setPaletteSearch] = useState('');
   const canvasAreaRef = useRef<HTMLDivElement>(null);
 
+  // ── Canvas pan state ────────────────────────────────────────────────────
+  const canvasPanRef = useRef<{
+    startX: number; startY: number;
+    scrollLeft: number; scrollTop: number;
+    moved: boolean;
+  } | null>(null);
+
+  const handleCanvasMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    if (e.button !== 0) return;
+    const canvas = canvasAreaRef.current;
+    if (!canvas) return;
+
+    canvasPanRef.current = {
+      startX: e.clientX,
+      startY: e.clientY,
+      scrollLeft: canvas.scrollLeft,
+      scrollTop: canvas.scrollTop,
+      moved: false,
+    };
+    canvas.style.cursor = 'grabbing';
+
+    const onMove = (me: MouseEvent) => {
+      const pan = canvasPanRef.current;
+      if (!pan || !canvasAreaRef.current) return;
+      const dx = me.clientX - pan.startX;
+      const dy = me.clientY - pan.startY;
+      if (Math.abs(dx) > 3 || Math.abs(dy) > 3) pan.moved = true;
+      canvasAreaRef.current.scrollLeft = pan.scrollLeft - dx;
+      canvasAreaRef.current.scrollTop = pan.scrollTop - dy;
+    };
+
+    const onUp = () => {
+      if (canvasPanRef.current && !canvasPanRef.current.moved) {
+        setSelectedElement(null);
+        setPageMenuId(null);
+      }
+      canvasPanRef.current = null;
+      if (canvasAreaRef.current) canvasAreaRef.current.style.cursor = 'grab';
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
+
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+  }, [setSelectedElement]);
+
+  // ── Drop element onto page ───────────────────────────────────────────────
+  const handleDropOnPage = useCallback((e: React.DragEvent<HTMLDivElement>, page: Page) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const type = e.dataTransfer.getData('elementType');
+    if (!type) return;
+
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = Math.round((e.clientX - rect.left) / zoom);
+    const y = Math.round((e.clientY - rect.top) / zoom);
+
+    const el = getDefaultElement(type, page.id, device.width, device.height);
+    const w = typeof el.style.width === 'number' ? el.style.width : 100;
+    const h = typeof el.style.height === 'number' ? el.style.height : 50;
+    el.style.x = Math.max(0, Math.min(device.width - w, x - Math.round(w / 2)));
+    el.style.y = Math.max(0, Math.min(device.height - h, y - Math.round(h / 2)));
+
+    addElement(params.id, page.id, el);
+    setSelectedPage(page.id);
+    setSelectedElement(el.id);
+  }, [zoom, device, params.id, addElement, setSelectedPage, setSelectedElement]);
+
   // ── Keyboard shortcuts ──────────────────────────────────────────────────
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -510,13 +578,14 @@ export default function BuilderPage({ params }: { params: { id: string } }) {
         {/* ─── Center Canvas (all pages side by side) ──────────────────── */}
         <div
           ref={canvasAreaRef}
-          className="flex-1 overflow-x-auto overflow-y-auto relative"
+          className="flex-1 overflow-x-auto overflow-y-auto relative select-none"
           style={{
             backgroundImage: 'radial-gradient(circle, #d1d5db 1px, transparent 1px)',
             backgroundSize: '20px 20px',
             backgroundColor: '#f9fafb',
+            cursor: 'grab',
           }}
-          onClick={() => { setSelectedElement(null); setPageMenuId(null); }}
+          onMouseDown={handleCanvasMouseDown}
         >
           <div
             className="flex flex-row items-start gap-16 px-16 py-12"
@@ -527,6 +596,7 @@ export default function BuilderPage({ params }: { params: { id: string } }) {
                 key={page.id}
                 className="flex flex-col items-center gap-3 flex-shrink-0"
                 onClick={e => e.stopPropagation()}
+                onMouseDown={e => e.stopPropagation()}
               >
                 {/* Page label */}
                 <div
@@ -575,7 +645,7 @@ export default function BuilderPage({ params }: { params: { id: string } }) {
                       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-24 h-6 bg-gray-800 rounded-b-2xl z-10 pointer-events-none" />
                     )}
 
-                    {/* Elements */}
+                    {/* Elements — also the drop zone */}
                     <div
                       className="absolute inset-0 overflow-hidden"
                       style={{
@@ -584,7 +654,8 @@ export default function BuilderPage({ params }: { params: { id: string } }) {
                         width: device.width,
                         height: device.height,
                       }}
-                      onClick={e => { e.stopPropagation(); setSelectedElement(null); }}
+                      onDragOver={e => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; }}
+                      onDrop={e => handleDropOnPage(e, page)}
                     >
                       {page.elements.map(el => (
                         el.visible !== false && (
@@ -683,6 +754,10 @@ function PaletteCard({ item, onClick }: { item: PaletteItem; onClick: () => void
     <button
       onClick={onClick}
       draggable
+      onDragStart={e => {
+        e.dataTransfer.setData('elementType', item.type);
+        e.dataTransfer.effectAllowed = 'copy';
+      }}
       className="flex flex-col items-center justify-center gap-1.5 bg-white border border-gray-100 rounded-xl hover:border-brand hover:bg-brand-50 transition-all group cursor-grab active:cursor-grabbing"
       style={{ height: 72, padding: '8px 4px' }}
       title={item.label}
