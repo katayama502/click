@@ -23,7 +23,112 @@ body {
 .scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
 .scrollbar-thin::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 2px; }
 
+/* Better canvas grid - dot pattern matching real Click */
 .canvas-grid {
-  background-image: radial-gradient(circle, #d1d5db 1px, transparent 1px);
-  background-size: 20px 20px;
+  background-color: #f0f0f0;
+  background-image: radial-gradient(circle, #bbb 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+/* Scrollbar improvements */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #9ca3af; }
+
+/* Builder panel transitions */
+.panel-slide-in {
+  animation: panelSlideIn 0.15s ease-out;
+}
+@keyframes panelSlideIn {
+  from { opacity: 0; transform: translateX(8px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+/* Tooltip styles */
+.tooltip {
+  position: relative;
+}
+.tooltip::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: #1f2937;
+  color: white;
+  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: 4px;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s;
+  z-index: 100;
+}
+.tooltip:hover::after { opacity: 1; }
+
+/* Element selection in canvas */
+.element-selected {
+  outline: 2px solid #1ec8a5 !important;
+  outline-offset: 1px;
+}
+
+/* Page frame shadow */
+.page-frame-shadow {
+  box-shadow: 0 25px 80px -10px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(0,0,0,0.1);
+}
+
+/* Smooth page transitions */
+.page-transition {
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+/* Builder right panel section headers */
+.panel-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: #374151;
+  border-bottom: 1px solid #f3f4f6;
+  margin-bottom: 8px;
+  cursor: pointer;
+  user-select: none;
+}
+
+/* Database table styles */
+.db-table-header {
+  background: #f9fafb;
+  border-bottom: 1px solid #e5e7eb;
+  font-size: 12px;
+  font-weight: 600;
+  color: #374151;
+}
+.db-table-row:hover {
+  background: #eff6ff;
+}
+.db-table-row.selected {
+  background: #dbeafe;
+}
+
+/* Inline edit cell */
+.cell-editing {
+  outline: 2px solid #1ec8a5;
+  outline-offset: -2px;
+  border-radius: 2px;
+}
+
+/* Element palette item hover animation */
+.palette-item {
+  transition: transform 0.1s ease, box-shadow 0.1s ease;
+}
+.palette-item:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+.palette-item:active {
+  transform: translateY(0);
 }

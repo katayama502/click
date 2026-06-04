@@ -1,32 +1,27 @@
 'use client';
 
-import { useEffect, useState, useRef, useCallback } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useStore } from '@/lib/store';
 import type { App } from '@/lib/types';
 import {
-  LayoutGrid,
-  List,
-  LayoutTemplate,
-  Trash2,
-  Bell,
-  ChevronDown,
-  MoreHorizontal,
   Plus,
   Smartphone,
   Monitor,
-  Tablet,
-  Search,
-  Settings,
+  MoreHorizontal,
+  Grid,
   Database,
-  Copy,
-  Pencil,
-  LogOut,
-  User,
-  ArrowUpRight,
-  Sparkles,
+  Home,
+  BookOpen,
+  Settings,
+  Users,
   X,
-  Check,
+  LogOut,
+  ChevronRight,
+  Play,
+  Copy,
+  Trash2,
+  Pencil,
 } from 'lucide-react';
 
 // ────────────────────────────────────────────────────────────────
@@ -41,119 +36,27 @@ function relativeTime(dateStr: string): string {
   const hours = Math.floor(mins / 60);
   if (hours < 24) return `${hours}時間前`;
   const days = Math.floor(hours / 24);
-  if (days < 30) return `${days}日前`;
-  const months = Math.floor(days / 30);
-  if (months < 12) return `${months}ヶ月前`;
-  return new Date(dateStr).toLocaleDateString('ja-JP', { year: 'numeric', month: 'short', day: 'numeric' });
+  return days < 30 ? `${days}日前` : new Date(dateStr).toLocaleDateString('ja-JP');
 }
 
-const GRADIENT_PAIRS = [
-  ['#ccfbef', '#99f6e0'],   // brand teal
-  ['#ede9fe', '#ddd6fe'],   // purple
-  ['#dbeafe', '#bfdbfe'],   // blue
-  ['#ffedd5', '#fed7aa'],   // orange
-  ['#fce7f3', '#fbcfe8'],   // pink
-  ['#fef9c3', '#fef08a'],   // yellow
-  ['#dcfce7', '#bbf7d0'],   // green
-  ['#e0f2fe', '#bae6fd'],   // sky
+const GRADIENT_CLASSES = [
+  'from-teal-400 to-teal-600',
+  'from-purple-400 to-purple-600',
+  'from-blue-400 to-blue-600',
+  'from-orange-400 to-orange-500',
+  'from-pink-400 to-pink-600',
+  'from-emerald-400 to-emerald-600',
+  'from-indigo-400 to-indigo-600',
+  'from-rose-400 to-rose-600',
 ];
 
-function getAppGradient(name: string): { from: string; to: string } {
-  const idx = (name.charCodeAt(0) + name.charCodeAt(name.length - 1)) % GRADIENT_PAIRS.length;
-  const [from, to] = GRADIENT_PAIRS[idx];
-  return { from, to };
+function getGradient(name: string): string {
+  return GRADIENT_CLASSES[name.charCodeAt(0) % GRADIENT_CLASSES.length];
 }
-
-function getAppEmoji(name: string): string {
-  const emojis = ['📱', '🚀', '✨', '🎯', '💡', '🌟', '🔥', '⚡'];
-  return emojis[name.charCodeAt(0) % emojis.length];
-}
-
-type SortKey = 'updatedAt' | 'createdAt' | 'name';
-type ViewMode = 'grid' | 'list';
-type SidebarTab = 'apps' | 'templates' | 'trash';
 
 // ────────────────────────────────────────────────────────────────
-// Sub-components
+// App Settings Modal
 // ────────────────────────────────────────────────────────────────
-
-interface AppCardMenuProps {
-  app: App;
-  onEdit: () => void;
-  onDuplicate: () => void;
-  onSettings: () => void;
-  onDelete: () => void;
-}
-
-function AppCardMenu({ app, onEdit, onDuplicate, onSettings, onDelete }: AppCardMenuProps) {
-  const [open, setOpen] = useState(false);
-  const menuRef = useRef<HTMLDivElement>(null);
-  const router = useRouter();
-
-  useEffect(() => {
-    function handleClickOutside(e: MouseEvent) {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
-    }
-    if (open) document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [open]);
-
-  return (
-    <div ref={menuRef} className="relative">
-      <button
-        onClick={e => { e.stopPropagation(); setOpen(v => !v); }}
-        className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
-      >
-        <MoreHorizontal size={15} />
-      </button>
-      {open && (
-        <div
-          className="absolute right-0 top-8 z-50 bg-white rounded-xl shadow-xl border border-gray-100 w-48 py-1 text-sm"
-          onClick={e => e.stopPropagation()}
-        >
-          <button
-            onClick={() => { setOpen(false); onEdit(); }}
-            className="flex items-center gap-2.5 w-full px-3.5 py-2 text-gray-700 hover:bg-gray-50 transition-colors"
-          >
-            <Pencil size={14} className="text-gray-400" />
-            キャンバスを開く
-          </button>
-          <button
-            onClick={() => { setOpen(false); router.push(`/builder/${app.id}/data`); }}
-            className="flex items-center gap-2.5 w-full px-3.5 py-2 text-gray-700 hover:bg-gray-50 transition-colors"
-          >
-            <Database size={14} className="text-gray-400" />
-            データを見る
-          </button>
-          <button
-            onClick={() => { setOpen(false); onDuplicate(); }}
-            className="flex items-center gap-2.5 w-full px-3.5 py-2 text-gray-700 hover:bg-gray-50 transition-colors"
-          >
-            <Copy size={14} className="text-gray-400" />
-            複製する
-          </button>
-          <button
-            onClick={() => { setOpen(false); onSettings(); }}
-            className="flex items-center gap-2.5 w-full px-3.5 py-2 text-gray-700 hover:bg-gray-50 transition-colors"
-          >
-            <Settings size={14} className="text-gray-400" />
-            設定
-          </button>
-          <div className="my-1 h-px bg-gray-100" />
-          <button
-            onClick={() => { setOpen(false); onDelete(); }}
-            className="flex items-center gap-2.5 w-full px-3.5 py-2 text-red-500 hover:bg-red-50 transition-colors"
-          >
-            <Trash2 size={14} />
-            削除する
-          </button>
-        </div>
-      )}
-    </div>
-  );
-}
 
 interface AppSettingsModalProps {
   app: App;
@@ -166,8 +69,6 @@ function AppSettingsModal({ app, onClose, onSave, onDelete }: AppSettingsModalPr
   const [name, setName] = useState(app.name);
   const [description, setDescription] = useState(app.description ?? '');
   const [confirmDelete, setConfirmDelete] = useState(false);
-
-  const deviceLabel: Record<string, string> = { mobile: 'モバイル', tablet: 'タブレット', desktop: 'デスクトップ' };
 
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
@@ -210,26 +111,6 @@ function AppSettingsModal({ app, onClose, onSave, onDelete }: AppSettingsModalPr
               maxLength={100}
             />
             <p className="text-xs text-gray-400 mt-1 text-right">{description.length}/100</p>
-          </div>
-
-          {/* Read-only info */}
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1.5">バージョン</label>
-              <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold bg-brand-50 text-brand-700 border border-brand-200">
-                {app.version.toUpperCase()}
-              </span>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1.5">デバイス</label>
-              <div className="flex flex-wrap gap-1">
-                {app.devices.map(d => (
-                  <span key={d} className="inline-flex items-center px-2 py-0.5 rounded-md text-xs bg-gray-100 text-gray-600">
-                    {deviceLabel[d] ?? d}
-                  </span>
-                ))}
-              </div>
-            </div>
           </div>
 
           {/* Danger Zone */}
@@ -284,182 +165,195 @@ function AppSettingsModal({ app, onClose, onSave, onDelete }: AppSettingsModalPr
   );
 }
 
-interface AppGridCardProps {
+// ────────────────────────────────────────────────────────────────
+// App Card (matches Click.dev card style)
+// ────────────────────────────────────────────────────────────────
+
+interface AppCardProps {
   app: App;
-  onEdit: () => void;
+  menuAppId: string | null;
+  onMenuToggle: (id: string | null) => void;
+  onOpenCanvas: () => void;
+  onOpenData: () => void;
   onDuplicate: () => void;
   onSettings: () => void;
   onDelete: () => void;
 }
 
-function AppGridCard({ app, onEdit, onDuplicate, onSettings, onDelete }: AppGridCardProps) {
-  const gradient = getAppGradient(app.name);
-  const emoji = getAppEmoji(app.name);
+function AppCard({
+  app,
+  menuAppId,
+  onMenuToggle,
+  onOpenCanvas,
+  onOpenData,
+  onDuplicate,
+  onSettings,
+  onDelete,
+}: AppCardProps) {
+  const menuOpen = menuAppId === app.id;
+  const menuRef = useRef<HTMLDivElement>(null);
+  const router = useRouter();
 
-  const DeviceIcon = app.primaryDevice === 'desktop' ? Monitor
-    : app.primaryDevice === 'tablet' ? Tablet
-    : Smartphone;
+  useEffect(() => {
+    if (!menuOpen) return;
+    function handleOutside(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        onMenuToggle(null);
+      }
+    }
+    document.addEventListener('mousedown', handleOutside);
+    return () => document.removeEventListener('mousedown', handleOutside);
+  }, [menuOpen, onMenuToggle]);
 
   return (
     <div
-      className="bg-white rounded-xl border border-gray-200 overflow-hidden hover:shadow-lg hover:border-gray-300 transition-all duration-200 cursor-pointer group relative"
-      onClick={onEdit}
+      className="bg-white rounded-xl border border-gray-100 shadow-sm hover:shadow-md cursor-pointer overflow-hidden transition-shadow group relative"
+      onClick={onOpenCanvas}
     >
       {/* Thumbnail */}
       <div
-        className="h-40 relative flex items-center justify-center"
-        style={{ background: `linear-gradient(135deg, ${gradient.from}, ${gradient.to})` }}
+        className={`h-40 flex items-center justify-center bg-gradient-to-br ${getGradient(app.name)} relative`}
       >
-        <span className="text-5xl select-none">{emoji}</span>
+        {/* "Click" watermark text */}
+        <div className="text-white/40 text-4xl font-black tracking-tighter select-none">Click</div>
 
-        {/* Badges top-right */}
-        <div className="absolute top-2.5 right-2.5 flex gap-1.5">
-          {app.version === 'v4' && (
-            <span className="px-1.5 py-0.5 rounded text-xs font-bold bg-white/90 text-brand-700 shadow-sm">
-              v4
-            </span>
-          )}
-          {app.published && (
-            <span className="px-1.5 py-0.5 rounded text-xs font-bold bg-brand text-white shadow-sm">
-              公開中
-            </span>
-          )}
-        </div>
-
-        {/* Device icon bottom-left */}
-        <div className="absolute bottom-2.5 left-2.5 w-6 h-6 flex items-center justify-center rounded-md bg-white/80 backdrop-blur-sm shadow-sm">
-          <DeviceIcon size={13} className="text-gray-500" />
-        </div>
-
-        {/* Hover edit overlay */}
-        <div className="absolute inset-0 bg-brand/10 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-          <div className="bg-white rounded-lg px-3 py-1.5 text-xs font-medium text-gray-700 shadow-md opacity-0 group-hover:opacity-100 transition-all translate-y-1 group-hover:translate-y-0">
-            開く →
+        {/* v4 badge */}
+        {app.version === 'v4' && (
+          <div className="absolute top-2 left-2 bg-white/90 text-brand-700 text-xs font-bold px-1.5 py-0.5 rounded shadow-sm">
+            v4
           </div>
+        )}
+
+        {/* Published badge — only when no menu open */}
+        {app.published && !menuOpen && (
+          <div className="absolute top-2 right-2 bg-green-500 text-white text-xs font-medium px-1.5 py-0.5 rounded">
+            公開中
+          </div>
+        )}
+
+        {/* 3-dot menu button — visible on hover */}
+        <div
+          ref={menuRef}
+          className="absolute top-2 right-2"
+          onClick={e => e.stopPropagation()}
+        >
+          <button
+            onClick={e => {
+              e.stopPropagation();
+              onMenuToggle(menuOpen ? null : app.id);
+            }}
+            className={`w-7 h-7 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center shadow transition-opacity ${
+              menuOpen ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+            }`}
+          >
+            <MoreHorizontal size={14} className="text-gray-600" />
+          </button>
+
+          {/* Dropdown */}
+          {menuOpen && (
+            <div className="absolute right-0 top-8 z-50 bg-white rounded-xl shadow-xl border border-gray-100 w-44 py-1 text-sm">
+              <button
+                onClick={() => { onMenuToggle(null); onOpenCanvas(); }}
+                className="flex items-center gap-2.5 w-full px-3.5 py-2 text-gray-700 hover:bg-gray-50 transition-colors"
+              >
+                <Grid size={13} className="text-gray-400" />
+                キャンバスを開く
+              </button>
+              <button
+                onClick={() => { onMenuToggle(null); onOpenData(); }}
+                className="flex items-center gap-2.5 w-full px-3.5 py-2 text-gray-700 hover:bg-gray-50 transition-colors"
+              >
+                <Database size={13} className="text-gray-400" />
+                データを見る
+              </button>
+              <button
+                onClick={() => { onMenuToggle(null); onDuplicate(); }}
+                className="flex items-center gap-2.5 w-full px-3.5 py-2 text-gray-700 hover:bg-gray-50 transition-colors"
+              >
+                <Copy size={13} className="text-gray-400" />
+                複製する
+              </button>
+              <button
+                onClick={() => { onMenuToggle(null); onSettings(); }}
+                className="flex items-center gap-2.5 w-full px-3.5 py-2 text-gray-700 hover:bg-gray-50 transition-colors"
+              >
+                <Settings size={13} className="text-gray-400" />
+                設定
+              </button>
+              <div className="my-1 h-px bg-gray-100" />
+              <button
+                onClick={() => { onMenuToggle(null); onDelete(); }}
+                className="flex items-center gap-2.5 w-full px-3.5 py-2 text-red-500 hover:bg-red-50 transition-colors"
+              >
+                <Trash2 size={13} />
+                削除する
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Hover overlay — キャンバス / データベース buttons */}
+        <div className="absolute inset-0 bg-black/10 opacity-0 group-hover:opacity-100 flex items-center justify-center gap-3 transition-opacity pointer-events-none group-hover:pointer-events-auto">
+          <button
+            onClick={e => { e.stopPropagation(); onOpenCanvas(); }}
+            className="bg-white rounded-xl px-3 py-2.5 text-sm font-medium shadow-lg flex flex-col items-center gap-1 hover:bg-gray-50 transition-colors"
+          >
+            <Grid size={18} className="text-gray-600" />
+            <span className="text-xs text-gray-700">キャンバス</span>
+          </button>
+          <button
+            onClick={e => { e.stopPropagation(); onOpenData(); }}
+            className="bg-white rounded-xl px-3 py-2.5 text-sm font-medium shadow-lg flex flex-col items-center gap-1 hover:bg-gray-50 transition-colors"
+          >
+            <Database size={18} className="text-gray-600" />
+            <span className="text-xs text-gray-700">データベース</span>
+          </button>
         </div>
       </div>
 
       {/* Card body */}
-      <div className="px-3.5 py-3">
-        <div className="flex items-start justify-between gap-1">
-          <div className="min-w-0 flex-1">
-            <p className="font-semibold text-gray-900 text-sm truncate leading-tight">{app.name}</p>
-            {app.description && (
-              <p className="text-xs text-gray-400 truncate mt-0.5">{app.description}</p>
-            )}
-            <p className="text-xs text-gray-400 mt-1">{relativeTime(app.updatedAt)}更新</p>
-          </div>
-
-          {/* 3-dot menu — always visible, just subtle */}
-          <div className="opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-            <AppCardMenu
-              app={app}
-              onEdit={onEdit}
-              onDuplicate={onDuplicate}
-              onSettings={onSettings}
-              onDelete={onDelete}
-            />
-          </div>
+      <div className="p-3">
+        <div className="flex items-center gap-1.5 mb-0.5">
+          {app.primaryDevice === 'mobile'
+            ? <Smartphone size={11} className="text-gray-400 shrink-0" />
+            : <Monitor size={11} className="text-gray-400 shrink-0" />
+          }
+          <span className="font-medium text-gray-900 text-sm truncate">{app.name}</span>
         </div>
-
-        {/* Quick action row on hover */}
-        <div className="mt-2 pt-2 border-t border-gray-100 opacity-0 group-hover:opacity-100 transition-opacity">
-          <button
-            onClick={e => { e.stopPropagation(); onEdit(); }}
-            className="text-xs text-brand font-medium hover:text-brand-600 transition-colors"
-          >
-            編集する
-          </button>
-        </div>
+        <span className="text-xs text-gray-400">{relativeTime(app.updatedAt)}</span>
       </div>
     </div>
   );
 }
 
-interface AppListRowProps {
-  app: App;
-  onEdit: () => void;
-  onDuplicate: () => void;
-  onSettings: () => void;
-  onDelete: () => void;
-}
+// ────────────────────────────────────────────────────────────────
+// Circular Progress Ring
+// ────────────────────────────────────────────────────────────────
 
-function AppListRow({ app, onEdit, onDuplicate, onSettings, onDelete }: AppListRowProps) {
-  const gradient = getAppGradient(app.name);
-  const emoji = getAppEmoji(app.name);
-  const DeviceIcon = app.primaryDevice === 'desktop' ? Monitor
-    : app.primaryDevice === 'tablet' ? Tablet
-    : Smartphone;
-  const deviceLabel: Record<string, string> = { mobile: 'モバイル', tablet: 'タブレット', desktop: 'デスクトップ' };
+function CircularProgress({ value, max }: { value: number; max: number }) {
+  const pct = Math.min(100, (value / max) * 100);
+  const circumference = 2 * Math.PI * 15.9;
+  const offset = circumference - (pct / 100) * circumference;
 
   return (
-    <div
-      className="flex items-center gap-4 px-4 py-3 bg-white rounded-xl border border-gray-200 hover:shadow-md hover:border-gray-300 transition-all duration-150 cursor-pointer group"
-      onClick={onEdit}
-    >
-      {/* Thumbnail mini */}
-      <div
-        className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0 text-lg"
-        style={{ background: `linear-gradient(135deg, ${gradient.from}, ${gradient.to})` }}
-      >
-        {emoji}
-      </div>
-
-      {/* Name & description */}
-      <div className="flex-1 min-w-0">
-        <p className="font-medium text-gray-900 text-sm truncate">{app.name}</p>
-        {app.description && (
-          <p className="text-xs text-gray-400 truncate">{app.description}</p>
-        )}
-      </div>
-
-      {/* Device */}
-      <div className="hidden sm:flex items-center gap-1 text-xs text-gray-500 w-24 shrink-0">
-        <DeviceIcon size={12} className="text-gray-400" />
-        {deviceLabel[app.primaryDevice]}
-      </div>
-
-      {/* Version */}
-      <div className="hidden md:block w-12 shrink-0">
-        <span className="px-1.5 py-0.5 rounded text-xs font-semibold bg-brand-50 text-brand-700 border border-brand-100">
-          {app.version.toUpperCase()}
-        </span>
-      </div>
-
-      {/* Published */}
-      <div className="hidden md:block w-16 shrink-0">
-        {app.published ? (
-          <span className="flex items-center gap-1 text-xs text-brand font-medium">
-            <span className="w-1.5 h-1.5 rounded-full bg-brand inline-block" />
-            公開中
-          </span>
-        ) : (
-          <span className="text-xs text-gray-400">非公開</span>
-        )}
-      </div>
-
-      {/* Updated */}
-      <div className="hidden lg:block text-xs text-gray-400 w-24 shrink-0 text-right">
-        {relativeTime(app.updatedAt)}
-      </div>
-
-      {/* Actions */}
-      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" onClick={e => e.stopPropagation()}>
-        <button
-          onClick={e => { e.stopPropagation(); onEdit(); }}
-          className="text-xs px-2.5 py-1.5 text-brand font-medium hover:bg-brand-50 rounded-lg transition-colors"
-        >
-          編集
-        </button>
-        <AppCardMenu
-          app={app}
-          onEdit={onEdit}
-          onDuplicate={onDuplicate}
-          onSettings={onSettings}
-          onDelete={onDelete}
-        />
-      </div>
-    </div>
+    <svg viewBox="0 0 36 36" className="w-10 h-10 -rotate-90">
+      <circle
+        cx="18" cy="18" r="15.9"
+        fill="none"
+        stroke="#e5e7eb"
+        strokeWidth="3"
+      />
+      <circle
+        cx="18" cy="18" r="15.9"
+        fill="none"
+        stroke="#1ec8a5"
+        strokeWidth="3"
+        strokeDasharray={`${circumference}`}
+        strokeDashoffset={offset}
+        strokeLinecap="round"
+        style={{ transition: 'stroke-dashoffset 0.4s ease' }}
+      />
+    </svg>
   );
 }
 
@@ -467,19 +361,16 @@ function AppListRow({ app, onEdit, onDuplicate, onSettings, onDelete }: AppListR
 // Main Page
 // ────────────────────────────────────────────────────────────────
 
+type NavItem = 'home' | 'products' | 'tutorial' | 'settings';
+
 export default function WorkspacePage() {
   const router = useRouter();
-  const { currentUser, workspace, apps, deleteApp, duplicateApp, updateApp, logout } = useStore();
+  const { currentUser, apps, workspace, createApp, updateApp, deleteApp, duplicateApp, logout } = useStore();
 
-  const [sidebarTab, setSidebarTab] = useState<SidebarTab>('apps');
-  const [viewMode, setViewMode] = useState<ViewMode>('grid');
-  const [sortKey, setSortKey] = useState<SortKey>('updatedAt');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [showSortMenu, setShowSortMenu] = useState(false);
-  const [showUserMenu, setShowUserMenu] = useState(false);
+  const [activeNav, setActiveNav] = useState<NavItem>('home');
+  const [menuAppId, setMenuAppId] = useState<string | null>(null);
   const [settingsApp, setSettingsApp] = useState<App | null>(null);
-
-  const sortMenuRef = useRef<HTMLDivElement>(null);
+  const [showUserMenu, setShowUserMenu] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
 
   // Auth guard
@@ -487,11 +378,12 @@ export default function WorkspacePage() {
     if (!currentUser) router.replace('/login');
   }, [currentUser, router]);
 
-  // Close menus on outside click
+  // Close user menu on outside click
   useEffect(() => {
     function handler(e: MouseEvent) {
-      if (sortMenuRef.current && !sortMenuRef.current.contains(e.target as Node)) setShowSortMenu(false);
-      if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) setShowUserMenu(false);
+      if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) {
+        setShowUserMenu(false);
+      }
     }
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
@@ -500,113 +392,75 @@ export default function WorkspacePage() {
   if (!currentUser) return null;
 
   const wsName = workspace?.name ?? `${currentUser.name}のワークスペース`;
+  const MAX_APPS = 10;
 
-  // Filter & sort
-  const filtered = apps
-    .filter(a => a.name.toLowerCase().includes(searchQuery.toLowerCase()))
-    .sort((a, b) => {
-      if (sortKey === 'name') return a.name.localeCompare(b.name, 'ja');
-      if (sortKey === 'createdAt') return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-      return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
-    });
-
-  const sortLabels: Record<SortKey, string> = {
-    updatedAt: '更新日',
-    createdAt: '作成日',
-    name: '名前',
-  };
-
-  const handleEdit = (app: App) => router.push(`/builder/${app.id}`);
-  const handleDuplicate = (app: App) => { duplicateApp(app.id); };
   const handleDelete = (app: App) => {
     if (confirm(`「${app.name}」を削除しますか？この操作は元に戻せません。`)) {
       deleteApp(app.id);
       if (settingsApp?.id === app.id) setSettingsApp(null);
     }
   };
+
   const handleSaveSettings = (app: App, updates: { name: string; description: string }) => {
     updateApp(app.id, { name: updates.name, description: updates.description || undefined });
     setSettingsApp(null);
   };
 
+  // Sort apps by most recently updated
+  const recentApps = [...apps].sort(
+    (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+  );
+
   return (
     <div className="h-screen flex flex-col bg-gray-50 overflow-hidden">
 
-      {/* ── Header ────────────────────────────────────────────── */}
-      <header className="h-14 bg-white border-b border-gray-200 px-5 flex items-center gap-4 shrink-0 z-30">
+      {/* ── HEADER ─────────────────────────────────────────────── */}
+      <header className="h-14 bg-white border-b border-gray-200 flex items-center px-4 gap-3 shrink-0 z-30 shadow-sm">
         {/* Logo */}
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex items-center gap-2 shrink-0 mr-1">
           <div className="w-7 h-7 bg-brand rounded-lg flex items-center justify-center shadow-sm">
             <span className="text-white font-black text-xs tracking-tight">C</span>
           </div>
           <span className="font-bold text-gray-900 text-sm">Click</span>
         </div>
 
-        {/* Workspace name */}
-        <div className="hidden sm:flex items-center gap-1.5 text-sm text-gray-500 min-w-0">
-          <span className="text-gray-300">/</span>
-          <span className="truncate max-w-[200px] font-medium text-gray-700">{wsName}</span>
+        {/* Workspace breadcrumb */}
+        <div className="flex items-center gap-1 text-sm text-gray-500 min-w-0">
+          <ChevronRight size={14} className="text-gray-300 shrink-0" />
+          <span className="truncate max-w-[180px] text-gray-700 font-medium">{wsName}</span>
+          <span className="ml-1.5 inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-500">
+            Release
+          </span>
         </div>
 
         <div className="flex-1" />
 
-        {/* Search */}
-        {apps.length > 0 && (
-          <div className="hidden md:flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-lg px-3 py-1.5 w-56 focus-within:border-brand focus-within:ring-2 focus-within:ring-brand/20 transition-all">
-            <Search size={13} className="text-gray-400 shrink-0" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
-              placeholder="アプリを検索..."
-              className="bg-transparent text-sm text-gray-700 placeholder-gray-400 focus:outline-none w-full"
-            />
-            {searchQuery && (
-              <button onClick={() => setSearchQuery('')} className="text-gray-400 hover:text-gray-600">
-                <X size={13} />
-              </button>
-            )}
-          </div>
-        )}
-
-        {/* Notification */}
-        <button className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors relative">
-          <Bell size={16} />
-          <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-red-400" />
+        {/* New product button */}
+        <button
+          onClick={() => router.push('/workspace/new')}
+          className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white px-3.5 py-1.5 rounded-lg text-sm font-medium transition-colors shadow-sm"
+        >
+          <Plus size={15} />
+          <span>新規プロダクト</span>
         </button>
 
-        {/* User avatar & dropdown */}
+        {/* User avatar */}
         <div ref={userMenuRef} className="relative">
           <button
             onClick={() => setShowUserMenu(v => !v)}
-            className="flex items-center gap-2 rounded-lg px-2 py-1 hover:bg-gray-100 transition-colors"
+            className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-gray-600 text-sm font-bold hover:bg-gray-300 transition-colors"
           >
-            <div className="w-7 h-7 rounded-full bg-brand flex items-center justify-center text-white text-xs font-bold shrink-0">
-              {currentUser.name.charAt(0)}
-            </div>
-            <span className="hidden sm:block text-sm font-medium text-gray-700 max-w-[100px] truncate">
-              {currentUser.name}
-            </span>
-            <ChevronDown size={13} className="text-gray-400 hidden sm:block" />
+            {currentUser.name.charAt(0).toUpperCase()}
           </button>
 
           {showUserMenu && (
-            <div className="absolute right-0 top-11 z-50 bg-white rounded-xl shadow-xl border border-gray-100 w-48 py-1.5">
-              <div className="px-3.5 py-2 border-b border-gray-100 mb-1">
+            <div className="absolute right-0 top-10 z-50 bg-white rounded-xl shadow-xl border border-gray-100 w-48 py-1.5">
+              <div className="px-3.5 py-2.5 border-b border-gray-100">
                 <p className="text-xs font-semibold text-gray-900 truncate">{currentUser.name}</p>
                 <p className="text-xs text-gray-400 truncate">{currentUser.email}</p>
               </div>
-              <button className="flex items-center gap-2.5 w-full px-3.5 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
-                <User size={14} className="text-gray-400" />
-                プロフィール
-              </button>
-              <button className="flex items-center gap-2.5 w-full px-3.5 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
-                <Settings size={14} className="text-gray-400" />
-                設定
-              </button>
-              <div className="my-1 h-px bg-gray-100" />
               <button
-                onClick={() => { logout(); router.replace('/login'); }}
+                onClick={() => { setShowUserMenu(false); logout(); router.replace('/login'); }}
                 className="flex items-center gap-2.5 w-full px-3.5 py-2 text-sm text-red-500 hover:bg-red-50 transition-colors"
               >
                 <LogOut size={14} />
@@ -617,271 +471,164 @@ export default function WorkspacePage() {
         </div>
       </header>
 
-      {/* ── Body (sidebar + main) ──────────────────────────────── */}
+      {/* ── BODY ────────────────────────────────────────────────── */}
       <div className="flex flex-1 min-h-0">
 
-        {/* ── Sidebar ─────────────────────────────────────────── */}
-        <aside className="w-56 shrink-0 bg-gray-50 border-r border-gray-200 flex flex-col py-3 z-20">
-          <nav className="flex-1 px-2 space-y-0.5">
+        {/* ── LEFT SIDEBAR ─────────────────────────────────────── */}
+        <aside className="w-56 shrink-0 bg-white border-r border-gray-200 flex flex-col py-3 z-20">
+
+          {/* Workspace identity */}
+          <div className="flex items-center gap-2.5 px-3 py-2 mb-2">
+            <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-gray-600 text-sm font-bold shrink-0">
+              {currentUser.name.charAt(0).toUpperCase()}
+            </div>
+            <span className="text-sm font-medium text-gray-800 truncate">{wsName}</span>
+          </div>
+
+          {/* Primary nav */}
+          <nav className="px-2 space-y-0.5">
             {(
               [
-                { key: 'apps', label: 'マイアプリ', icon: LayoutGrid, count: apps.length },
-                { key: 'templates', label: 'テンプレート', icon: LayoutTemplate, count: null },
-                { key: 'trash', label: 'ゴミ箱', icon: Trash2, count: null },
-              ] as const
-            ).map(({ key, label, icon: Icon, count }) => (
+                { key: 'home',     label: 'ホーム',        Icon: Home },
+                { key: 'products', label: 'プロダクト一覧', Icon: Grid },
+                { key: 'tutorial', label: 'チュートリアル', Icon: BookOpen },
+                { key: 'settings', label: '設定',          Icon: Settings },
+              ] as { key: NavItem; label: string; Icon: typeof Home }[]
+            ).map(({ key, label, Icon }) => (
               <button
                 key={key}
-                onClick={() => setSidebarTab(key)}
+                onClick={() => setActiveNav(key)}
                 className={`flex items-center gap-2.5 w-full px-3 py-2 rounded-lg text-sm transition-colors ${
-                  sidebarTab === key
+                  activeNav === key
                     ? 'bg-brand text-white font-medium shadow-sm'
-                    : 'text-gray-600 hover:bg-gray-200/70 hover:text-gray-800'
+                    : 'text-gray-600 hover:bg-gray-100 hover:text-gray-800'
                 }`}
               >
                 <Icon size={15} />
-                <span className="flex-1 text-left">{label}</span>
-                {count !== null && count > 0 && (
-                  <span
-                    className={`text-xs rounded-full px-1.5 py-0.5 font-medium min-w-[20px] text-center ${
-                      sidebarTab === key ? 'bg-white/20 text-white' : 'bg-gray-200 text-gray-500'
-                    }`}
-                  >
-                    {count}
-                  </span>
-                )}
+                <span>{label}</span>
               </button>
             ))}
           </nav>
 
-          {/* Plan badge */}
-          <div className="mx-2 mt-2 p-3 bg-white rounded-xl border border-gray-200 shadow-sm">
-            <div className="flex items-center gap-1.5 mb-1.5">
-              <Sparkles size={13} className="text-amber-400" />
-              <span className="text-xs font-semibold text-gray-700">Free プラン</span>
+          {/* Separator */}
+          <div className="mx-3 my-3 h-px bg-gray-100" />
+
+          {/* Secondary nav */}
+          <nav className="px-2 space-y-0.5">
+            <button className="flex items-center gap-2.5 w-full px-3 py-2 rounded-lg text-sm text-gray-600 hover:bg-gray-100 hover:text-gray-800 transition-colors">
+              <BookOpen size={15} />
+              マニュアル
+            </button>
+            <button className="flex items-center gap-2.5 w-full px-3 py-2 rounded-lg text-sm text-gray-600 hover:bg-gray-100 hover:text-gray-800 transition-colors">
+              <Users size={15} />
+              コミュニティ
+            </button>
+          </nav>
+
+          {/* Promo banner */}
+          <div className="mx-2 mt-3 rounded-xl overflow-hidden bg-gradient-to-br from-brand to-teal-600 p-3 text-white">
+            <p className="text-xs font-bold mb-0.5">紹介キャンペーン</p>
+            <p className="text-xs text-white/80 leading-snug">友達を紹介して特典をゲット！</p>
+            <button className="mt-2 text-xs font-semibold bg-white/20 hover:bg-white/30 transition-colors px-2.5 py-1 rounded-md">
+              詳しく見る
+            </button>
+          </div>
+
+          {/* Spacer */}
+          <div className="flex-1" />
+
+          {/* Plan info */}
+          <div className="mx-2 mt-3 p-3 border border-gray-100 rounded-xl bg-gray-50">
+            <p className="text-xs font-bold text-gray-800 mb-2">Standard</p>
+            <div className="flex items-center gap-2.5 mb-1">
+              <CircularProgress value={apps.length} max={MAX_APPS} />
+              <div>
+                <p className="text-xs text-gray-500 leading-tight">アプリ数</p>
+                <p className="text-sm font-semibold text-gray-800">{apps.length}/{MAX_APPS}</p>
+              </div>
             </div>
-            <p className="text-xs text-gray-400 mb-2.5">
-              アプリ: <span className="font-medium text-gray-600">{apps.length}</span> / 無制限
-            </p>
-            <button className="flex items-center justify-between w-full text-xs font-medium text-brand hover:text-brand-600 transition-colors group">
+            <button className="w-full mt-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium py-1.5 rounded-lg transition-colors">
               アップグレード
-              <ArrowUpRight size={12} className="group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
             </button>
           </div>
         </aside>
 
-        {/* ── Main content ────────────────────────────────────── */}
-        <main className="flex-1 min-w-0 flex flex-col">
+        {/* ── MAIN CONTENT ─────────────────────────────────────── */}
+        <main className="flex-1 min-w-0 overflow-y-auto">
+          <div className="max-w-5xl mx-auto px-8 py-8">
 
-          {sidebarTab === 'apps' && (
-            <>
-              {/* Sub-header */}
-              <div className="px-6 py-4 bg-white border-b border-gray-100 flex items-center gap-3 shrink-0">
-                <h1 className="font-semibold text-gray-900 text-base">マイアプリ</h1>
-                {apps.length > 0 && (
-                  <span className="text-xs font-medium px-1.5 py-0.5 bg-gray-100 text-gray-500 rounded-full">
-                    {apps.length}
-                  </span>
-                )}
+            {/* Section header row */}
+            <div className="flex items-center gap-3 mb-5">
+              <h1 className="text-base font-semibold text-gray-900">最近のプロダクト</h1>
 
-                <div className="flex-1" />
+              {/* "How to create" video link */}
+              <button className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-brand transition-colors ml-1">
+                <span className="w-5 h-5 rounded-full bg-gray-100 flex items-center justify-center">
+                  <Play size={9} className="text-gray-500 ml-0.5" />
+                </span>
+                新規プロダクト作成方法
+              </button>
 
-                {/* Sort */}
-                {apps.length > 0 && (
-                  <div ref={sortMenuRef} className="relative">
-                    <button
-                      onClick={() => setShowSortMenu(v => !v)}
-                      className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700 px-2.5 py-1.5 rounded-lg hover:bg-gray-100 transition-colors border border-gray-200"
-                    >
-                      {sortLabels[sortKey]}
-                      <ChevronDown size={13} />
-                    </button>
-                    {showSortMenu && (
-                      <div className="absolute right-0 top-10 z-40 bg-white rounded-xl shadow-xl border border-gray-100 w-36 py-1">
-                        {(Object.entries(sortLabels) as [SortKey, string][]).map(([key, label]) => (
-                          <button
-                            key={key}
-                            onClick={() => { setSortKey(key); setShowSortMenu(false); }}
-                            className="flex items-center justify-between w-full px-3.5 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-                          >
-                            {label}
-                            {sortKey === key && <Check size={13} className="text-brand" />}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )}
+              <div className="flex-1" />
 
-                {/* View toggle */}
-                {apps.length > 0 && (
-                  <div className="flex items-center bg-gray-100 rounded-lg p-0.5">
-                    <button
-                      onClick={() => setViewMode('grid')}
-                      className={`w-7 h-7 flex items-center justify-center rounded-md transition-colors ${
-                        viewMode === 'grid' ? 'bg-white text-gray-700 shadow-sm' : 'text-gray-400 hover:text-gray-600'
-                      }`}
-                    >
-                      <LayoutGrid size={14} />
-                    </button>
-                    <button
-                      onClick={() => setViewMode('list')}
-                      className={`w-7 h-7 flex items-center justify-center rounded-md transition-colors ${
-                        viewMode === 'list' ? 'bg-white text-gray-700 shadow-sm' : 'text-gray-400 hover:text-gray-600'
-                      }`}
-                    >
-                      <List size={14} />
-                    </button>
-                  </div>
-                )}
+              <button className="text-xs text-blue-600 hover:text-blue-700 font-medium flex items-center gap-0.5 transition-colors">
+                すべて見る
+                <ChevronRight size={13} />
+              </button>
+            </div>
 
-                {/* New app button */}
+            {/* App Grid */}
+            {apps.length === 0 ? (
+              /* Empty state */
+              <div className="flex flex-col items-center justify-center py-24 text-center">
+                <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mb-4">
+                  <Plus size={28} className="text-gray-400" />
+                </div>
+                <h2 className="text-lg font-bold text-gray-900 mb-2">最初のアプリを作りましょう</h2>
+                <p className="text-sm text-gray-500 mb-6 max-w-xs">
+                  新規プロダクトを作成するをクリックして開始
+                </p>
                 <button
                   onClick={() => router.push('/workspace/new')}
-                  className="flex items-center gap-1.5 bg-brand hover:bg-brand-600 text-white px-3.5 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm"
+                  className="flex items-center gap-2 bg-brand hover:bg-brand-600 text-white px-5 py-2.5 rounded-xl text-sm font-semibold transition-colors shadow-md shadow-brand/30"
                 >
-                  <Plus size={15} />
-                  新しいアプリ
+                  <Plus size={16} />
+                  新規プロダクトを作成する
                 </button>
               </div>
+            ) : (
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+                {/* New product card — always first */}
+                <div
+                  onClick={() => router.push('/workspace/new')}
+                  className="bg-white border-2 border-dashed border-gray-200 rounded-xl cursor-pointer hover:border-brand hover:bg-brand-50 flex flex-col items-center justify-center transition-colors"
+                  style={{ minHeight: 204 }}
+                >
+                  <Plus size={30} className="text-gray-300 mb-2" />
+                  <span className="text-xs text-gray-400 text-center px-3">新規プロダクトを作成する</span>
+                </div>
 
-              {/* Content area */}
-              <div className="flex-1 overflow-y-auto">
-                {/* Mobile search */}
-                {apps.length > 0 && (
-                  <div className="md:hidden px-6 pt-4">
-                    <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-lg px-3 py-2 focus-within:border-brand focus-within:ring-2 focus-within:ring-brand/20 transition-all">
-                      <Search size={14} className="text-gray-400 shrink-0" />
-                      <input
-                        type="text"
-                        value={searchQuery}
-                        onChange={e => setSearchQuery(e.target.value)}
-                        placeholder="アプリを検索..."
-                        className="bg-transparent text-sm text-gray-700 placeholder-gray-400 focus:outline-none w-full"
-                      />
-                    </div>
-                  </div>
-                )}
-
-                {/* Empty state */}
-                {apps.length === 0 && (
-                  <div className="flex flex-col items-center justify-center h-full min-h-[60vh] px-6 text-center">
-                    <div className="w-20 h-20 bg-brand-50 rounded-2xl flex items-center justify-center mb-5 shadow-sm">
-                      <span className="text-4xl">🎉</span>
-                    </div>
-                    <h2 className="text-xl font-bold text-gray-900 mb-2">最初のアプリを作成しましょう</h2>
-                    <p className="text-sm text-gray-500 mb-7 max-w-xs leading-relaxed">
-                      ドラッグ＆ドロップでノーコードアプリを<br />素早く作成できます
-                    </p>
-                    <button
-                      onClick={() => router.push('/workspace/new')}
-                      className="flex items-center gap-2 bg-brand hover:bg-brand-600 text-white px-6 py-3 rounded-xl text-sm font-semibold transition-colors shadow-md shadow-brand/30"
-                    >
-                      <Plus size={16} />
-                      新しいアプリを作る
-                    </button>
-
-                    {/* Template hints */}
-                    <div className="mt-10 grid grid-cols-3 gap-3 max-w-sm">
-                      {[
-                        { emoji: '🛒', label: 'ECサイト' },
-                        { emoji: '📋', label: 'タスク管理' },
-                        { emoji: '📊', label: 'ダッシュボード' },
-                      ].map(t => (
-                        <div
-                          key={t.label}
-                          className="bg-white border border-gray-200 rounded-xl p-3 text-center cursor-pointer hover:shadow-md hover:border-brand/40 transition-all group"
-                          onClick={() => router.push('/workspace/new')}
-                        >
-                          <span className="text-2xl block mb-1">{t.emoji}</span>
-                          <p className="text-xs text-gray-500 font-medium group-hover:text-brand transition-colors">{t.label}</p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* No search results */}
-                {apps.length > 0 && filtered.length === 0 && searchQuery && (
-                  <div className="flex flex-col items-center justify-center min-h-[40vh] text-center px-6">
-                    <Search size={32} className="text-gray-300 mb-3" />
-                    <p className="text-sm font-medium text-gray-500">該当するアプリが見つかりません</p>
-                    <p className="text-xs text-gray-400 mt-1">「{searchQuery}」に一致するアプリはありません</p>
-                    <button
-                      onClick={() => setSearchQuery('')}
-                      className="mt-4 text-xs text-brand hover:text-brand-600 font-medium"
-                    >
-                      検索をクリア
-                    </button>
-                  </div>
-                )}
-
-                {/* Grid view */}
-                {filtered.length > 0 && viewMode === 'grid' && (
-                  <div className="p-6 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-                    {filtered.map(app => (
-                      <AppGridCard
-                        key={app.id}
-                        app={app}
-                        onEdit={() => handleEdit(app)}
-                        onDuplicate={() => handleDuplicate(app)}
-                        onSettings={() => setSettingsApp(app)}
-                        onDelete={() => handleDelete(app)}
-                      />
-                    ))}
-                  </div>
-                )}
-
-                {/* List view */}
-                {filtered.length > 0 && viewMode === 'list' && (
-                  <div className="p-6 space-y-2">
-                    {/* List header */}
-                    <div className="hidden lg:grid grid-cols-[1fr_120px_80px_80px_100px_80px] gap-4 px-4 pb-1">
-                      {['アプリ名', 'デバイス', 'バージョン', 'ステータス', '更新日', ''].map((h, i) => (
-                        <p key={i} className="text-xs font-medium text-gray-400 uppercase tracking-wide">{h}</p>
-                      ))}
-                    </div>
-                    {filtered.map(app => (
-                      <AppListRow
-                        key={app.id}
-                        app={app}
-                        onEdit={() => handleEdit(app)}
-                        onDuplicate={() => handleDuplicate(app)}
-                        onSettings={() => setSettingsApp(app)}
-                        onDelete={() => handleDelete(app)}
-                      />
-                    ))}
-                  </div>
-                )}
+                {/* App cards */}
+                {recentApps.map(app => (
+                  <AppCard
+                    key={app.id}
+                    app={app}
+                    menuAppId={menuAppId}
+                    onMenuToggle={setMenuAppId}
+                    onOpenCanvas={() => router.push(`/builder/${app.id}`)}
+                    onOpenData={() => router.push(`/builder/${app.id}/data`)}
+                    onDuplicate={() => duplicateApp(app.id)}
+                    onSettings={() => setSettingsApp(app)}
+                    onDelete={() => handleDelete(app)}
+                  />
+                ))}
               </div>
-            </>
-          )}
-
-          {/* Templates tab */}
-          {sidebarTab === 'templates' && (
-            <div className="flex flex-col items-center justify-center flex-1 text-center px-6">
-              <div className="w-16 h-16 bg-purple-50 rounded-2xl flex items-center justify-center mb-4">
-                <LayoutTemplate size={28} className="text-purple-400" />
-              </div>
-              <h2 className="text-lg font-bold text-gray-900 mb-2">テンプレート</h2>
-              <p className="text-sm text-gray-400 max-w-xs">すぐに使えるテンプレートが近日公開予定です</p>
-            </div>
-          )}
-
-          {/* Trash tab */}
-          {sidebarTab === 'trash' && (
-            <div className="flex flex-col items-center justify-center flex-1 text-center px-6">
-              <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mb-4">
-                <Trash2 size={28} className="text-gray-400" />
-              </div>
-              <h2 className="text-lg font-bold text-gray-900 mb-2">ゴミ箱</h2>
-              <p className="text-sm text-gray-400 max-w-xs">削除されたアプリは30日間保存されます</p>
-            </div>
-          )}
+            )}
+          </div>
         </main>
       </div>
 
-      {/* ── App Settings Modal ─────────────────────────────────── */}
+      {/* ── App Settings Modal ──────────────────────────────────── */}
       {settingsApp && (
         <AppSettingsModal
           app={settingsApp}

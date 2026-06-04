@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useStore } from '@/lib/store';
 import type { DeviceType } from '@/lib/types';
@@ -16,7 +16,6 @@ type DBOption = 'create' | 'skip';
 // Helpers
 // ────────────────────────────────────────────────────────────
 function getVisibleSteps(deviceSelection: DeviceSelection): number[] {
-  // Always: 1, (2 if responsive), 3, 4
   if (deviceSelection === 'responsive') return [1, 2, 3, 4];
   return [1, 3, 4];
 }
@@ -30,37 +29,134 @@ function getStepIndex(step: number, deviceSelection: DeviceSelection): number {
 }
 
 // ────────────────────────────────────────────────────────────
-// Sub-components
+// Icons (inline SVG to avoid extra deps)
 // ────────────────────────────────────────────────────────────
-
-interface SelectCardProps {
-  selected: boolean;
-  onClick: () => void;
-  children: React.ReactNode;
-  className?: string;
+function CheckIcon({ size = 16, className = '' }: { size?: number; className?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <path d="M20 6L9 17l-5-5" />
+    </svg>
+  );
 }
 
-function SelectCard({ selected, onClick, children, className = '' }: SelectCardProps) {
+function ChevronLeftIcon({ size = 16 }: { size?: number }) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={[
-        'w-full text-left rounded-xl border-2 p-4 transition-all duration-200',
-        'hover:border-brand hover:bg-brand-50',
-        selected
-          ? 'border-brand bg-brand-50 shadow-sm'
-          : 'border-gray-200 bg-white',
-        className,
-      ].join(' ')}
-    >
-      {children}
-    </button>
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M15 18l-6-6 6-6" />
+    </svg>
+  );
+}
+
+function ChevronRightIcon({ size = 16 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M9 18l6-6-6-6" />
+    </svg>
+  );
+}
+
+function ArrowLeftIcon({ size = 16 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M19 12H5M12 5l-7 7 7 7" />
+    </svg>
+  );
+}
+
+function SparkleIcon({ size = 16 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor">
+      <path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6z" />
+    </svg>
+  );
+}
+
+function DatabaseIcon({ size = 20, className = '' }: { size?: number; className?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <ellipse cx="12" cy="5" rx="9" ry="3" />
+      <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3" />
+      <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5" />
+    </svg>
+  );
+}
+
+function SkipIcon({ size = 20, className = '' }: { size?: number; className?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <circle cx="12" cy="12" r="10" />
+      <path d="M10 15l5-3-5-3v6z" />
+      <path d="M17 9v6" />
+    </svg>
   );
 }
 
 // ────────────────────────────────────────────────────────────
-// Step 1 — Device Selection
+// Device Illustrations
+// ────────────────────────────────────────────────────────────
+function PhoneIllustration({ active }: { active: boolean }) {
+  return (
+    <div className={[
+      'w-14 h-24 rounded-2xl border-4 flex flex-col items-center justify-start pt-2 gap-1 transition-colors duration-200',
+      active ? 'border-brand bg-brand-50' : 'border-gray-300 bg-gray-50',
+    ].join(' ')}>
+      <div className={['w-4 h-1 rounded-full transition-colors duration-200', active ? 'bg-brand' : 'bg-gray-300'].join(' ')} />
+      <div className={['w-8 h-11 rounded-md transition-colors duration-200', active ? 'bg-brand/20' : 'bg-gray-200'].join(' ')} />
+      <div className={['w-3 h-3 rounded-full border-2 transition-colors duration-200', active ? 'border-brand' : 'border-gray-300'].join(' ')} />
+    </div>
+  );
+}
+
+function LaptopIllustration({ active }: { active: boolean }) {
+  return (
+    <div className="flex flex-col items-center gap-0">
+      <div className={[
+        'w-24 h-16 rounded-t-lg border-4 border-b-0 flex items-center justify-center transition-colors duration-200',
+        active ? 'border-brand bg-brand-50' : 'border-gray-300 bg-gray-50',
+      ].join(' ')}>
+        <div className={['w-16 h-9 rounded transition-colors duration-200', active ? 'bg-brand/20' : 'bg-gray-200'].join(' ')} />
+      </div>
+      <div className={[
+        'w-28 h-2 rounded-b-lg border-4 border-t-2 transition-colors duration-200',
+        active ? 'border-brand' : 'border-gray-300',
+      ].join(' ')} />
+    </div>
+  );
+}
+
+function MultiDeviceIllustration({ active }: { active: boolean }) {
+  return (
+    <div className="flex items-end gap-1.5">
+      {/* Phone */}
+      <div className={[
+        'w-7 h-12 rounded-lg border-2 flex flex-col items-center justify-start pt-1 gap-0.5 transition-colors duration-200',
+        active ? 'border-brand bg-brand-50' : 'border-gray-300 bg-gray-50',
+      ].join(' ')}>
+        <div className={['w-3 h-4 rounded-sm transition-colors duration-200', active ? 'bg-brand/20' : 'bg-gray-200'].join(' ')} />
+      </div>
+      {/* Tablet */}
+      <div className={[
+        'w-10 h-14 rounded-lg border-2 flex items-center justify-center transition-colors duration-200',
+        active ? 'border-brand bg-brand-50' : 'border-gray-300 bg-gray-50',
+      ].join(' ')}>
+        <div className={['w-7 h-9 rounded-sm transition-colors duration-200', active ? 'bg-brand/20' : 'bg-gray-200'].join(' ')} />
+      </div>
+      {/* Laptop screen */}
+      <div className="flex flex-col items-center gap-0">
+        <div className={[
+          'w-16 h-10 rounded-t-md border-2 border-b-0 flex items-center justify-center transition-colors duration-200',
+          active ? 'border-brand bg-brand-50' : 'border-gray-300 bg-gray-50',
+        ].join(' ')}>
+          <div className={['w-11 h-6 rounded-sm transition-colors duration-200', active ? 'bg-brand/20' : 'bg-gray-200'].join(' ')} />
+        </div>
+        <div className={['w-18 h-1.5 rounded-b-md border-2 border-t-0 transition-colors duration-200', active ? 'border-brand' : 'border-gray-300'].join(' ')} style={{ width: 72 }} />
+      </div>
+    </div>
+  );
+}
+
+// ────────────────────────────────────────────────────────────
+// Step 1 — Device Selection (large cards)
 // ────────────────────────────────────────────────────────────
 interface Step1Props {
   value: DeviceSelection;
@@ -68,52 +164,78 @@ interface Step1Props {
 }
 
 function Step1({ value, onChange }: Step1Props) {
+  const options: Array<{
+    key: DeviceSelection;
+    label: string;
+    sublabel: string;
+    badge?: { text: string; color: string };
+    illustration: React.ReactNode;
+  }> = [
+    {
+      key: 'mobile',
+      label: 'モバイルのみ',
+      sublabel: 'スマートフォン専用',
+      badge: { text: 'おすすめ', color: 'bg-brand text-white' },
+      illustration: <PhoneIllustration active={value === 'mobile'} />,
+    },
+    {
+      key: 'pc',
+      label: 'PCのみ',
+      sublabel: 'パソコン専用',
+      illustration: <LaptopIllustration active={value === 'pc'} />,
+    },
+    {
+      key: 'responsive',
+      label: 'PC / タブレット\n/ モバイル',
+      sublabel: '3デバイス対応',
+      badge: { text: 'v4', color: 'bg-purple-500 text-white' },
+      illustration: <MultiDeviceIllustration active={value === 'responsive'} />,
+    },
+  ];
+
   return (
-    <div className="space-y-3">
-      <SelectCard selected={value === 'mobile'} onClick={() => onChange('mobile')}>
-        <div className="flex items-start gap-3">
-          <span className="text-2xl leading-none mt-0.5">📱</span>
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="font-semibold text-gray-900">モバイルのみ</span>
-              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-brand text-white">
-                おすすめ
-              </span>
-            </div>
-            <p className="mt-0.5 text-sm text-gray-500">スマートフォン専用のアプリを作成します</p>
-          </div>
-          <RadioDot selected={value === 'mobile'} />
-        </div>
-      </SelectCard>
+    <div className="flex gap-3">
+      {options.map((opt) => {
+        const selected = value === opt.key;
+        return (
+          <button
+            key={opt.key}
+            type="button"
+            onClick={() => onChange(opt.key)}
+            className={[
+              'flex-1 flex flex-col items-center gap-4 p-5 rounded-2xl border-2 cursor-pointer transition-all duration-200 relative',
+              selected
+                ? 'border-brand bg-brand-50 shadow-md'
+                : 'border-gray-200 hover:border-gray-300 bg-white hover:shadow-sm',
+            ].join(' ')}
+          >
+            {/* Selected checkmark */}
+            {selected && (
+              <div className="absolute top-3 right-3 w-5 h-5 rounded-full bg-brand flex items-center justify-center">
+                <CheckIcon size={11} className="text-white" />
+              </div>
+            )}
 
-      <SelectCard selected={value === 'pc'} onClick={() => onChange('pc')}>
-        <div className="flex items-start gap-3">
-          <span className="text-2xl leading-none mt-0.5">💻</span>
-          <div className="flex-1 min-w-0">
-            <span className="font-semibold text-gray-900">PCのみ</span>
-            <p className="mt-0.5 text-sm text-gray-500">パソコン専用のアプリを作成します</p>
-          </div>
-          <RadioDot selected={value === 'pc'} />
-        </div>
-      </SelectCard>
-
-      <SelectCard selected={value === 'responsive'} onClick={() => onChange('responsive')}>
-        <div className="flex items-start gap-3">
-          <span className="text-2xl leading-none mt-0.5">📱</span>
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="font-semibold text-gray-900">PC / タブレット / モバイル</span>
-              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-purple-500 text-white">
-                v4
-              </span>
+            {/* Illustration */}
+            <div className="h-20 flex items-end justify-center">
+              {opt.illustration}
             </div>
-            <p className="mt-0.5 text-sm text-gray-500">
-              3デバイス対応のレスポンシブアプリ（v4環境）
-            </p>
-          </div>
-          <RadioDot selected={value === 'responsive'} />
-        </div>
-      </SelectCard>
+
+            {/* Label */}
+            <div className="text-center">
+              <div className={['text-sm font-semibold leading-snug whitespace-pre-line', selected ? 'text-brand-800' : 'text-gray-900'].join(' ')}>
+                {opt.label}
+              </div>
+              <div className="text-xs text-gray-500 mt-1">{opt.sublabel}</div>
+              {opt.badge && (
+                <div className={['mt-2 text-xs px-2.5 py-0.5 rounded-full inline-block font-medium', opt.badge.color].join(' ')}>
+                  {opt.badge.text}
+                </div>
+              )}
+            </div>
+          </button>
+        );
+      })}
     </div>
   );
 }
@@ -127,23 +249,67 @@ interface Step2Props {
 }
 
 function Step2({ value, onChange }: Step2Props) {
-  const options: Array<{ key: PrimaryDevice; icon: string; label: string }> = [
-    { key: 'mobile', icon: '📱', label: 'モバイル' },
-    { key: 'tablet', icon: '📲', label: 'タブレット' },
-    { key: 'desktop', icon: '💻', label: 'PC' },
+  const options: Array<{ key: PrimaryDevice; illustration: React.ReactNode; label: string; sublabel: string }> = [
+    {
+      key: 'mobile',
+      illustration: <PhoneIllustration active={value === 'mobile'} />,
+      label: 'モバイル',
+      sublabel: 'スマートフォン基準',
+    },
+    {
+      key: 'tablet',
+      illustration: (
+        <div className={[
+          'w-20 h-16 rounded-xl border-4 flex items-center justify-center transition-colors duration-200',
+          value === 'tablet' ? 'border-brand bg-brand-50' : 'border-gray-300 bg-gray-50',
+        ].join(' ')}>
+          <div className={['w-14 h-9 rounded transition-colors duration-200', value === 'tablet' ? 'bg-brand/20' : 'bg-gray-200'].join(' ')} />
+        </div>
+      ),
+      label: 'タブレット',
+      sublabel: 'iPad基準',
+    },
+    {
+      key: 'desktop',
+      illustration: <LaptopIllustration active={value === 'desktop'} />,
+      label: 'PC',
+      sublabel: 'デスクトップ基準',
+    },
   ];
 
   return (
-    <div className="space-y-3">
-      {options.map((opt) => (
-        <SelectCard key={opt.key} selected={value === opt.key} onClick={() => onChange(opt.key)}>
-          <div className="flex items-center gap-3">
-            <span className="text-2xl leading-none">{opt.icon}</span>
-            <span className="font-semibold text-gray-900 flex-1">{opt.label}</span>
-            <RadioDot selected={value === opt.key} />
-          </div>
-        </SelectCard>
-      ))}
+    <div className="flex gap-3">
+      {options.map((opt) => {
+        const selected = value === opt.key;
+        return (
+          <button
+            key={opt.key}
+            type="button"
+            onClick={() => onChange(opt.key)}
+            className={[
+              'flex-1 flex flex-col items-center gap-4 p-5 rounded-2xl border-2 cursor-pointer transition-all duration-200 relative',
+              selected
+                ? 'border-brand bg-brand-50 shadow-md'
+                : 'border-gray-200 hover:border-gray-300 bg-white hover:shadow-sm',
+            ].join(' ')}
+          >
+            {selected && (
+              <div className="absolute top-3 right-3 w-5 h-5 rounded-full bg-brand flex items-center justify-center">
+                <CheckIcon size={11} className="text-white" />
+              </div>
+            )}
+            <div className="h-20 flex items-end justify-center">
+              {opt.illustration}
+            </div>
+            <div className="text-center">
+              <div className={['text-sm font-semibold', selected ? 'text-brand-800' : 'text-gray-900'].join(' ')}>
+                {opt.label}
+              </div>
+              <div className="text-xs text-gray-500 mt-1">{opt.sublabel}</div>
+            </div>
+          </button>
+        );
+      })}
     </div>
   );
 }
@@ -159,42 +325,115 @@ interface Step3Props {
 function Step3({ value, onChange }: Step3Props) {
   return (
     <div className="space-y-3">
-      <SelectCard selected={value === 'create'} onClick={() => onChange('create')}>
-        <div className="flex items-start gap-3">
-          <div className="flex-shrink-0 w-9 h-9 rounded-lg bg-brand-100 flex items-center justify-center text-brand text-lg">
-            🗄️
+      {/* Create DB — primary card */}
+      <button
+        type="button"
+        onClick={() => onChange('create')}
+        className={[
+          'w-full text-left rounded-2xl border-2 p-5 transition-all duration-200 relative',
+          value === 'create'
+            ? 'border-brand bg-brand-50 shadow-md'
+            : 'border-gray-200 bg-white hover:border-gray-300 hover:shadow-sm',
+        ].join(' ')}
+      >
+        {value === 'create' && (
+          <div className="absolute top-4 right-4 w-5 h-5 rounded-full bg-brand flex items-center justify-center">
+            <CheckIcon size={11} className="text-white" />
           </div>
-          <div className="flex-1 min-w-0">
-            <span className="font-semibold text-gray-900">新規データベースを作成</span>
-            <p className="mt-0.5 text-sm text-gray-500">新しいデータベースでアプリを作成します</p>
-            <div className="mt-2 flex items-center gap-1.5 text-xs text-brand font-medium">
-              <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
-                <path
-                  fillRule="evenodd"
-                  d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                  clipRule="evenodd"
-                />
-              </svg>
-              Usersテーブルが自動作成されます
+        )}
+        <div className="flex items-start gap-4">
+          <div className={[
+            'flex-shrink-0 w-11 h-11 rounded-xl flex items-center justify-center transition-colors duration-200',
+            value === 'create' ? 'bg-brand text-white' : 'bg-gray-100 text-gray-500',
+          ].join(' ')}>
+            <DatabaseIcon size={22} />
+          </div>
+          <div className="flex-1 min-w-0 pt-0.5">
+            <div className={['font-semibold text-base', value === 'create' ? 'text-brand-800' : 'text-gray-900'].join(' ')}>
+              新規データベースを作成
+            </div>
+            <p className="mt-1 text-sm text-gray-500">新しいデータベースでアプリを作成します</p>
+            <div className={[
+              'mt-3 inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-lg',
+              value === 'create' ? 'bg-brand/10 text-brand' : 'bg-gray-100 text-gray-500',
+            ].join(' ')}>
+              <CheckIcon size={12} />
+              Users テーブルが自動作成されます
             </div>
           </div>
-          <RadioDot selected={value === 'create'} />
         </div>
-      </SelectCard>
+      </button>
 
-      <SelectCard selected={value === 'skip'} onClick={() => onChange('skip')}>
-        <div className="flex items-start gap-3">
-          <div className="flex-shrink-0 w-9 h-9 rounded-lg bg-gray-100 flex items-center justify-center text-gray-500 text-lg">
-            ⏭️
+      {/* Skip — secondary card */}
+      <button
+        type="button"
+        onClick={() => onChange('skip')}
+        className={[
+          'w-full text-left rounded-2xl border-2 p-4 transition-all duration-200 relative',
+          value === 'skip'
+            ? 'border-brand bg-brand-50 shadow-sm'
+            : 'border-gray-100 bg-gray-50 hover:border-gray-200',
+        ].join(' ')}
+      >
+        {value === 'skip' && (
+          <div className="absolute top-3.5 right-4 w-5 h-5 rounded-full bg-brand flex items-center justify-center">
+            <CheckIcon size={11} className="text-white" />
           </div>
-          <div className="flex-1 min-w-0">
-            <span className="font-semibold text-gray-900">このステップをスキップ</span>
-            <p className="mt-0.5 text-sm text-gray-500">データベースなしで開始します</p>
-            <p className="mt-1 text-xs text-gray-400">後から追加できます</p>
+        )}
+        <div className="flex items-center gap-3">
+          <div className={[
+            'flex-shrink-0 w-9 h-9 rounded-xl flex items-center justify-center transition-colors duration-200',
+            value === 'skip' ? 'bg-brand text-white' : 'bg-gray-200 text-gray-400',
+          ].join(' ')}>
+            <SkipIcon size={18} />
           </div>
-          <RadioDot selected={value === 'skip'} />
+          <div>
+            <div className={['text-sm font-semibold', value === 'skip' ? 'text-brand-800' : 'text-gray-600'].join(' ')}>
+              このステップをスキップ
+            </div>
+            <p className="text-xs text-gray-400 mt-0.5">データベースなしで開始・後から追加できます</p>
+          </div>
         </div>
-      </SelectCard>
+      </button>
+    </div>
+  );
+}
+
+// ────────────────────────────────────────────────────────────
+// App Card Preview
+// ────────────────────────────────────────────────────────────
+function AppCardPreview({ name, description }: { name: string; description: string }) {
+  const displayName = name.trim() || 'アプリ名';
+  const isEmpty = !name.trim();
+
+  return (
+    <div className={[
+      'rounded-2xl border-2 p-4 transition-all duration-200',
+      isEmpty ? 'border-dashed border-gray-200 bg-gray-50' : 'border-brand/30 bg-brand-50 shadow-sm',
+    ].join(' ')}>
+      <div className="flex items-start gap-3">
+        {/* App icon placeholder */}
+        <div className={[
+          'flex-shrink-0 w-12 h-12 rounded-xl flex items-center justify-center text-lg font-bold transition-colors duration-200',
+          isEmpty ? 'bg-gray-200 text-gray-400' : 'bg-brand text-white',
+        ].join(' ')}>
+          {isEmpty ? '?' : displayName.charAt(0).toUpperCase()}
+        </div>
+        <div className="flex-1 min-w-0 pt-0.5">
+          <div className={['text-base font-semibold transition-colors duration-200', isEmpty ? 'text-gray-400' : 'text-gray-900'].join(' ')}>
+            {displayName}
+          </div>
+          <p className={['text-xs mt-0.5 transition-colors duration-200', isEmpty ? 'text-gray-300' : 'text-gray-500'].join(' ')}>
+            {description.trim() || (isEmpty ? '説明なし' : '説明なし')}
+          </p>
+          <div className="flex items-center gap-2 mt-2">
+            <span className="inline-flex items-center gap-1 text-xs text-gray-400">
+              <span className="w-1.5 h-1.5 rounded-full bg-gray-300 inline-block" />
+              編集中
+            </span>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
@@ -224,21 +463,16 @@ function Step4({ name, description, onNameChange, onDescriptionChange, nameInput
           onChange={(e) => onNameChange(e.target.value.slice(0, 30))}
           placeholder="例: タスク管理アプリ"
           className={[
-            'w-full rounded-xl border px-4 py-3 text-base text-gray-900 outline-none',
-            'transition-all duration-150 placeholder:text-gray-400',
-            'focus:border-brand focus:ring-2 focus:ring-brand/20',
-            name.length === 0 ? 'border-gray-300' : 'border-brand',
+            'w-full rounded-xl border-2 px-4 py-3.5 text-xl font-semibold text-gray-900 outline-none',
+            'transition-all duration-150 placeholder:text-gray-300 placeholder:font-normal placeholder:text-base',
+            'focus:ring-2 focus:ring-brand/20',
+            name.length === 0 ? 'border-gray-200' : 'border-brand',
           ].join(' ')}
           maxLength={30}
           autoComplete="off"
         />
-        <div className="mt-1 flex justify-end">
-          <span
-            className={[
-              'text-xs',
-              name.length >= 28 ? 'text-red-400' : 'text-gray-400',
-            ].join(' ')}
-          >
+        <div className="mt-1.5 flex justify-end">
+          <span className={['text-xs', name.length >= 28 ? 'text-red-400' : 'text-gray-400'].join(' ')}>
             {name.length}/30
           </span>
         </div>
@@ -253,62 +487,66 @@ function Step4({ name, description, onNameChange, onDescriptionChange, nameInput
           value={description}
           onChange={(e) => onDescriptionChange(e.target.value.slice(0, 100))}
           placeholder="アプリの説明（任意）"
-          rows={3}
+          rows={2}
           className={[
-            'w-full rounded-xl border px-4 py-3 text-sm text-gray-900 outline-none resize-none',
+            'w-full rounded-xl border-2 px-4 py-3 text-sm text-gray-900 outline-none resize-none',
             'transition-all duration-150 placeholder:text-gray-400',
-            'focus:border-brand focus:ring-2 focus:ring-brand/20',
-            description.length === 0 ? 'border-gray-300' : 'border-brand',
+            'focus:ring-2 focus:ring-brand/20',
+            description.length === 0 ? 'border-gray-200' : 'border-brand',
           ].join(' ')}
           maxLength={100}
         />
         <div className="mt-1 flex justify-end">
-          <span
-            className={[
-              'text-xs',
-              description.length >= 95 ? 'text-red-400' : 'text-gray-400',
-            ].join(' ')}
-          >
+          <span className={['text-xs', description.length >= 95 ? 'text-red-400' : 'text-gray-400'].join(' ')}>
             {description.length}/100
           </span>
         </div>
+      </div>
+
+      {/* Live preview */}
+      <div>
+        <p className="text-xs text-gray-400 mb-2 font-medium uppercase tracking-wide">プレビュー</p>
+        <AppCardPreview name={name} description={description} />
       </div>
     </div>
   );
 }
 
 // ────────────────────────────────────────────────────────────
-// Radio dot indicator
+// Step Progress Bar
 // ────────────────────────────────────────────────────────────
-function RadioDot({ selected }: { selected: boolean }) {
-  return (
-    <div
-      className={[
-        'flex-shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all',
-        selected ? 'border-brand' : 'border-gray-300',
-      ].join(' ')}
-    >
-      {selected && <div className="w-2.5 h-2.5 rounded-full bg-brand" />}
-    </div>
-  );
+interface StepProgressProps {
+  currentStepIndex: number; // 1-based
+  totalSteps: number;
 }
 
-// ────────────────────────────────────────────────────────────
-// Progress Bar
-// ────────────────────────────────────────────────────────────
-interface ProgressBarProps {
-  current: number;
-  total: number;
-}
-
-function ProgressBar({ current, total }: ProgressBarProps) {
-  const pct = Math.round((current / total) * 100);
+function StepProgress({ currentStepIndex, totalSteps }: StepProgressProps) {
   return (
-    <div className="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden">
-      <div
-        className="h-full bg-brand rounded-full transition-all duration-300 ease-out"
-        style={{ width: `${pct}%` }}
-      />
+    <div className="flex items-center gap-0 mb-8">
+      {Array.from({ length: totalSteps }, (_, i) => i + 1).map((s, i) => (
+        <React.Fragment key={s}>
+          <div className={[
+            'w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold transition-all duration-300 flex-shrink-0',
+            currentStepIndex > s
+              ? 'bg-brand text-white'
+              : currentStepIndex === s
+              ? 'bg-brand text-white ring-4 ring-brand/20'
+              : 'bg-gray-100 text-gray-400',
+          ].join(' ')}>
+            {currentStepIndex > s ? <CheckIcon size={14} /> : s}
+          </div>
+          {i < totalSteps - 1 && (
+            <div className={[
+              'flex-1 h-0.5 mx-1 transition-all duration-300',
+              currentStepIndex > s + 1
+                ? 'bg-brand'
+                : currentStepIndex === s + 1
+                ? 'bg-gradient-to-r from-brand to-gray-200'
+                : 'bg-gray-200',
+            ].join(' ')} />
+          )}
+        </React.Fragment>
+      ))}
     </div>
   );
 }
@@ -441,10 +679,7 @@ export default function NewAppPage() {
   }
 
   // ── Step title / subtitle ───────────────────────────────
-  const stepMeta: Record<
-    number,
-    { title: string; subtitle: string }
-  > = {
+  const stepMeta: Record<number, { title: string; subtitle: string }> = {
     1: {
       title: 'アクセスするデバイスを選択',
       subtitle: 'アプリにアクセスするデバイスを選択してください',
@@ -466,63 +701,33 @@ export default function NewAppPage() {
   const { title, subtitle } = stepMeta[currentStep];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-brand-50 to-brand-100 flex items-center justify-center p-4">
-      <div className="w-full max-w-lg">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-brand-50/30 to-gray-100 flex items-center justify-center p-4">
+      <div className="w-full max-w-2xl">
+        {/* Back to workspace link */}
+        <button
+          type="button"
+          onClick={() => router.push('/workspace')}
+          className="mb-4 flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700 transition-colors group"
+        >
+          <ArrowLeftIcon size={15} />
+          <span className="group-hover:underline">ワークスペースに戻る</span>
+        </button>
+
         {/* Card */}
-        <div className="bg-white rounded-2xl shadow-xl p-8">
-          {/* Header */}
-          <div className="mb-6">
-            {/* Logo / back link */}
-            <div className="flex items-center justify-between mb-5">
-              <button
-                type="button"
-                onClick={() => router.push('/workspace')}
-                className="flex items-center gap-1.5 text-sm text-gray-400 hover:text-gray-600 transition-colors"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-                </svg>
-                ワークスペース
-              </button>
-              <span className="text-xs text-gray-400 font-medium">
-                ステップ {stepIndex} / {totalSteps}
-              </span>
-            </div>
+        <div className="bg-white rounded-3xl shadow-xl shadow-gray-200/80 border border-gray-100 p-8">
+          {/* Step progress indicator */}
+          <StepProgress currentStepIndex={stepIndex} totalSteps={totalSteps} />
 
-            {/* Progress bar */}
-            <ProgressBar current={stepIndex} total={totalSteps} />
-
-            {/* Step dots */}
-            <div className="flex items-center justify-center gap-1.5 mt-3">
-              {visibleSteps.map((s, idx) => (
-                <div
-                  key={s}
-                  className={[
-                    'rounded-full transition-all duration-300',
-                    idx + 1 < stepIndex
-                      ? 'w-2 h-2 bg-brand'
-                      : idx + 1 === stepIndex
-                      ? 'w-6 h-2 bg-brand'
-                      : 'w-2 h-2 bg-gray-200',
-                  ].join(' ')}
-                />
-              ))}
-            </div>
+          {/* Title block */}
+          <div className="mb-7">
+            <h1 className="text-2xl font-bold text-gray-900 tracking-tight">{title}</h1>
+            <p className="mt-1.5 text-sm text-gray-500">{subtitle}</p>
           </div>
 
-          {/* Title */}
-          <div className="mb-6">
-            <h1 className="text-xl font-bold text-gray-900">{title}</h1>
-            <p className="mt-1 text-sm text-gray-500">{subtitle}</p>
-          </div>
-
-          {/* Step content — animate with key-based re-render */}
+          {/* Step content — animated on step change */}
           <div
             key={currentStep}
-            className="animate-fade-in"
-            style={{
-              animation: 'fadeSlideIn 0.2s ease-out',
-            }}
+            style={{ animation: 'fadeSlideIn 0.22s ease-out' }}
           >
             {currentStep === 1 && (
               <Step1 value={deviceSelection} onChange={setDeviceSelection} />
@@ -546,6 +751,7 @@ export default function NewAppPage() {
 
           {/* Navigation */}
           <div className="mt-8 flex items-center justify-between gap-3">
+            {/* Back button */}
             <button
               type="button"
               onClick={handleBack}
@@ -554,21 +760,21 @@ export default function NewAppPage() {
                 'flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-medium transition-all',
                 isFirstStep
                   ? 'text-gray-300 cursor-not-allowed'
-                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100',
+                  : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100',
               ].join(' ')}
             >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-              </svg>
+              <ChevronLeftIcon size={16} />
               戻る
             </button>
 
+            {/* Next / Create button */}
             <button
               type="button"
               onClick={handleNext}
               disabled={!canProceed() || isCreating}
               className={[
-                'flex items-center gap-1.5 px-6 py-2.5 rounded-xl text-sm font-semibold transition-all',
+                'flex items-center gap-2 rounded-xl font-semibold transition-all duration-200',
+                isLastStep ? 'px-8 py-3 text-base' : 'px-6 py-2.5 text-sm',
                 canProceed() && !isCreating
                   ? 'bg-brand text-white hover:bg-brand-600 shadow-sm hover:shadow-md active:scale-95'
                   : 'bg-gray-200 text-gray-400 cursor-not-allowed',
@@ -576,40 +782,21 @@ export default function NewAppPage() {
             >
               {isCreating ? (
                 <>
-                  <svg
-                    className="w-4 h-4 animate-spin"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                  >
-                    <circle
-                      className="opacity-25"
-                      cx="12"
-                      cy="12"
-                      r="10"
-                      stroke="currentColor"
-                      strokeWidth="4"
-                    />
-                    <path
-                      className="opacity-75"
-                      fill="currentColor"
-                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-                    />
+                  <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                   </svg>
                   作成中...
                 </>
               ) : isLastStep ? (
                 <>
+                  <SparkleIcon size={16} />
                   アプリを作成
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                  </svg>
                 </>
               ) : (
                 <>
                   次へ
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                  </svg>
+                  <ChevronRightIcon size={16} />
                 </>
               )}
             </button>
@@ -617,17 +804,17 @@ export default function NewAppPage() {
         </div>
 
         {/* Footer hint */}
-        <p className="mt-4 text-center text-xs text-brand-700/60">
+        <p className="mt-4 text-center text-xs text-gray-400">
           いつでも設定は後から変更できます
         </p>
       </div>
 
-      {/* Keyframe animation */}
+      {/* Keyframe animations */}
       <style jsx global>{`
         @keyframes fadeSlideIn {
           from {
             opacity: 0;
-            transform: translateY(6px);
+            transform: translateY(8px);
           }
           to {
             opacity: 1;

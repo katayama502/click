@@ -106,6 +106,42 @@ export function getDefaultStyle(type: ElementType): ElementStyle {
       return { ...base, width: 240, height: 44, borderRadius: 8, fontSize: 14 };
     case 'search-element':
       return { ...base, width: 240, height: 44, borderRadius: 22, fontSize: 14 };
+    case 'check':
+      return { ...base, width: 200, height: 36, color: '#374151' };
+    case 'card-list':
+      return { ...base, width: 320, height: 300, backgroundColor: '#ffffff' };
+    case 'custom-list':
+      return { ...base, width: 320, height: 240, backgroundColor: '#ffffff' };
+    case 'tag-list':
+      return { ...base, width: 280, height: 80 };
+    case 'avatar-list':
+      return { ...base, width: 160, height: 50 };
+    case 'stack-carousel':
+      return { ...base, width: 280, height: 180, backgroundColor: '#f3f4f6', borderRadius: 16 };
+    case 'barcode':
+      return { ...base, width: 200, height: 100, backgroundColor: '#ffffff', borderRadius: 8 };
+    case 'qr-code':
+      return { ...base, width: 120, height: 120, backgroundColor: '#ffffff', borderRadius: 8 };
+    case 'line-social':
+      return { ...base, width: 240, height: 50, borderRadius: 8 };
+    case 'map-element':
+      return { ...base, width: 320, height: 200, borderRadius: 12 };
+    case 'web-view':
+      return { ...base, width: 320, height: 200, borderRadius: 8 };
+    case 'youtube-element':
+      return { ...base, width: 280, height: 160, borderRadius: 8 };
+    case 'vimeo-element':
+      return { ...base, width: 280, height: 160, borderRadius: 8 };
+    case 'stamp-element':
+      return { ...base, width: 120, height: 120 };
+    case 'stamp-card':
+      return { ...base, width: 300, height: 200, backgroundColor: '#ffffff', borderRadius: 16 };
+    case 'lottie-element':
+      return { ...base, width: 200, height: 200, borderRadius: 8 };
+    case 'chat-element':
+      return { ...base, width: 320, height: 400, borderRadius: 12 };
+    case 'star-rating':
+      return { ...base, width: 200, height: 80 };
     default:
       return { ...base, width: 120, height: 40 };
   }
@@ -1051,6 +1087,259 @@ export default function ElementRenderer({
           disabled={!interactive}
           readOnly={editMode}
         />
+      </div>
+    );
+  }
+
+  // ── check ────────────────────────────────────────────────
+  if (type === 'check') {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, ...resolveStyle(s) }}>
+        <div style={{ width: 20, height: 20, borderRadius: 4, border: '2px solid #1ec8a5', backgroundColor: '#1ec8a5', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+          <span style={{ color: '#fff', fontSize: 14 }}>✓</span>
+        </div>
+        <span style={{ fontSize: s.fontSize ?? 14, color: s.color ?? '#374151' }}>{content || 'チェックボックス'}</span>
+      </div>
+    );
+  }
+
+  // ── card-list ────────────────────────────────────────────
+  if (type === 'card-list') {
+    return (
+      <div style={{ width: s.width, height: s.height, overflow: 'hidden', ...resolveStyle(s) }}>
+        {[1, 2].map(i => (
+          <div key={i} style={{ margin: '0 0 8px 0', borderRadius: 12, overflow: 'hidden', border: '1px solid #e5e7eb', backgroundColor: '#fff' }}>
+            <div style={{ height: 80, backgroundColor: '#f3f4f6' }} />
+            <div style={{ padding: '8px 12px' }}>
+              <div style={{ height: 12, width: '60%', backgroundColor: '#e5e7eb', borderRadius: 4, marginBottom: 6 }} />
+              <div style={{ height: 10, width: '40%', backgroundColor: '#f3f4f6', borderRadius: 4 }} />
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  // ── custom-list ──────────────────────────────────────────
+  if (type === 'custom-list') {
+    return (
+      <div style={{ width: s.width, height: s.height, backgroundColor: s.backgroundColor ?? '#fff', overflow: 'hidden' }}>
+        {[1, 2, 3].map(i => (
+          <div key={i} style={{ display: 'flex', alignItems: 'center', padding: '10px 16px', borderBottom: '1px solid #f3f4f6', gap: 12 }}>
+            <div style={{ width: 36, height: 36, borderRadius: 8, backgroundColor: '#1ec8a5', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <span style={{ color: '#fff', fontSize: 16 }}>★</span>
+            </div>
+            <div style={{ flex: 1 }}>
+              <div style={{ height: 12, width: '70%', backgroundColor: '#e5e7eb', borderRadius: 4, marginBottom: 6 }} />
+              <div style={{ height: 10, width: '50%', backgroundColor: '#f3f4f6', borderRadius: 4 }} />
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  // ── tag-list ─────────────────────────────────────────────
+  if (type === 'tag-list') {
+    return (
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, padding: 4, width: s.width }}>
+        {['タグ1', 'タグ2', 'タグ3', 'タグ4'].map(tag => (
+          <div key={tag} style={{ backgroundColor: '#f0fdf9', color: '#1ec8a5', border: '1px solid #1ec8a5', borderRadius: 20, padding: '4px 12px', fontSize: 12 }}>{tag}</div>
+        ))}
+      </div>
+    );
+  }
+
+  // ── avatar-list ──────────────────────────────────────────
+  if (type === 'avatar-list') {
+    const avatarColors = ['#1ec8a5', '#6366f1', '#f59e0b', '#ef4444'];
+    const avatarLabels = ['A', 'B', 'C', 'D'];
+    return (
+      <div style={{ display: 'flex', padding: 4 }}>
+        {[0, 1, 2, 3].map(i => (
+          <div key={i} style={{ width: 36, height: 36, borderRadius: '50%', border: '2px solid #fff', backgroundColor: avatarColors[i], display: 'flex', alignItems: 'center', justifyContent: 'center', marginLeft: i > 0 ? -8 : 0 }}>
+            <span style={{ color: '#fff', fontSize: 14, fontWeight: 'bold' }}>{avatarLabels[i]}</span>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  // ── stack-carousel ───────────────────────────────────────
+  if (type === 'stack-carousel') {
+    return (
+      <div style={{ width: s.width ?? 280, height: s.height ?? 180, position: 'relative' }}>
+        {[2, 1, 0].map(i => (
+          <div key={i} style={{ position: 'absolute', width: '80%', left: '10%', bottom: i * 8, height: '80%', backgroundColor: i === 0 ? '#1ec8a5' : `rgba(30,200,165,${0.3 + i * 0.2})`, borderRadius: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', transform: `scale(${1 - i * 0.05})` }}>
+            {i === 0 && <span style={{ color: '#fff', fontSize: 14 }}>スタックカルーセル</span>}
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  // ── barcode ──────────────────────────────────────────────
+  if (type === 'barcode') {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: 12, backgroundColor: s.backgroundColor ?? '#fff', borderRadius: s.borderRadius ?? 8, border: '1px solid #e5e7eb', width: s.width, height: s.height, overflow: 'hidden' }}>
+        <div style={{ display: 'flex', gap: 2, height: '60%', alignItems: 'flex-end' }}>
+          {Array.from({ length: 20 }, (_, i) => (
+            <div key={i} style={{ width: i % 3 === 0 ? 3 : 2, height: `${60 + (i % 4) * 10}%`, backgroundColor: '#1f2937' }} />
+          ))}
+        </div>
+        <div style={{ fontSize: 10, color: '#6b7280', marginTop: 8, letterSpacing: 4 }}>1234567890</div>
+      </div>
+    );
+  }
+
+  // ── qr-code ──────────────────────────────────────────────
+  if (type === 'qr-code') {
+    const qrCornerIndices = new Set([0, 1, 7, 8, 6, 13, 42, 43, 48, 47, 35, 41]);
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: s.width ?? 120, height: s.height ?? 120, backgroundColor: s.backgroundColor ?? '#fff', border: '1px solid #e5e7eb', borderRadius: s.borderRadius ?? 8, padding: 8 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 1, width: '80%', aspectRatio: '1' }}>
+          {Array.from({ length: 49 }, (_, i) => (
+            <div key={i} style={{ backgroundColor: qrCornerIndices.has(i) || i % 2 === 0 ? '#1f2937' : '#fff', borderRadius: 1 }} />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  // ── line-social ──────────────────────────────────────────
+  if (type === 'line-social') {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: s.width ?? 200, height: s.height ?? 50, backgroundColor: '#06C755', borderRadius: s.borderRadius ?? 8, cursor: interactive ? 'pointer' : 'default', pointerEvents: editMode ? 'none' : undefined }}>
+        <span style={{ color: '#fff', fontWeight: 'bold', fontSize: 16 }}>LINE でログイン</span>
+      </div>
+    );
+  }
+
+  // ── map-element ──────────────────────────────────────────
+  if (type === 'map-element') {
+    return (
+      <div style={{ width: s.width ?? 300, height: s.height ?? 200, backgroundColor: '#e5e7eb', borderRadius: s.borderRadius ?? 8, overflow: 'hidden', position: 'relative', border: '1px solid #d1d5db' }}>
+        <div style={{ position: 'absolute', inset: 0, backgroundImage: 'linear-gradient(45deg, #e5e7eb 25%, #f3f4f6 25%, #f3f4f6 50%, #e5e7eb 50%, #e5e7eb 75%, #f3f4f6 75%)', backgroundSize: '20px 20px' }} />
+        <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)' }}>
+          <div style={{ width: 24, height: 32, backgroundColor: '#ef4444', borderRadius: '50% 50% 50% 0', transform: 'rotate(-45deg)', margin: '0 auto' }} />
+        </div>
+        <div style={{ position: 'absolute', bottom: 8, right: 8, backgroundColor: '#fff', borderRadius: 4, padding: '2px 6px', fontSize: 10, color: '#6b7280' }}>Map</div>
+      </div>
+    );
+  }
+
+  // ── web-view ─────────────────────────────────────────────
+  if (type === 'web-view') {
+    return (
+      <div style={{ width: s.width ?? 300, height: s.height ?? 200, border: '1px solid #e5e7eb', borderRadius: s.borderRadius ?? 8, overflow: 'hidden' }}>
+        <div style={{ height: 32, backgroundColor: '#f3f4f6', borderBottom: '1px solid #e5e7eb', display: 'flex', alignItems: 'center', padding: '0 12px', gap: 8 }}>
+          <div style={{ display: 'flex', gap: 4 }}>
+            {['#ef4444', '#f59e0b', '#22c55e'].map(c => (
+              <div key={c} style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: c }} />
+            ))}
+          </div>
+          <div style={{ flex: 1, backgroundColor: '#fff', borderRadius: 4, height: 18, fontSize: 10, color: '#9ca3af', display: 'flex', alignItems: 'center', paddingLeft: 8 }}>https://example.com</div>
+        </div>
+        <div style={{ padding: 16, backgroundColor: '#fff' }}>
+          <div style={{ height: 12, width: '80%', backgroundColor: '#e5e7eb', borderRadius: 4, marginBottom: 8 }} />
+          <div style={{ height: 8, width: '60%', backgroundColor: '#f3f4f6', borderRadius: 4 }} />
+        </div>
+      </div>
+    );
+  }
+
+  // ── youtube-element ──────────────────────────────────────
+  if (type === 'youtube-element') {
+    return (
+      <div style={{ width: s.width ?? 280, height: s.height ?? 160, backgroundColor: '#000', borderRadius: s.borderRadius ?? 8, display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', overflow: 'hidden' }}>
+        <div style={{ width: 60, height: 60, backgroundColor: 'rgba(255,0,0,0.9)', borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ width: 0, height: 0, borderLeft: '20px solid white', borderTop: '12px solid transparent', borderBottom: '12px solid transparent', marginLeft: 4 }} />
+        </div>
+      </div>
+    );
+  }
+
+  // ── vimeo-element ────────────────────────────────────────
+  if (type === 'vimeo-element') {
+    return (
+      <div style={{ width: s.width ?? 280, height: s.height ?? 160, backgroundColor: '#1ab7ea', borderRadius: s.borderRadius ?? 8, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ width: 50, height: 50, borderRadius: '50%', backgroundColor: 'rgba(255,255,255,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ width: 0, height: 0, borderLeft: '18px solid white', borderTop: '10px solid transparent', borderBottom: '10px solid transparent', marginLeft: 3 }} />
+        </div>
+      </div>
+    );
+  }
+
+  // ── stamp-element ────────────────────────────────────────
+  if (type === 'stamp-element') {
+    return (
+      <div style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', gap: 4, padding: 16 }}>
+        <div style={{ width: 80, height: 80, borderRadius: '50%', border: '3px solid #1ec8a5', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#f0fdf9' }}>
+          <span style={{ fontSize: 36 }}>⭐</span>
+        </div>
+        <span style={{ fontSize: 12, color: '#6b7280' }}>{label || 'スタンプ'}</span>
+      </div>
+    );
+  }
+
+  // ── stamp-card ───────────────────────────────────────────
+  if (type === 'stamp-card') {
+    return (
+      <div style={{ width: s.width ?? 300, backgroundColor: s.backgroundColor ?? '#fff', border: '1px solid #e5e7eb', borderRadius: 16, padding: 16, overflow: 'hidden' }}>
+        <div style={{ fontSize: 14, fontWeight: 'bold', marginBottom: 12 }}>{label || 'スタンプカード'}</div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 8 }}>
+          {Array.from({ length: 10 }, (_, i) => (
+            <div key={i} style={{ aspectRatio: '1', borderRadius: '50%', border: `2px solid ${i < 3 ? '#1ec8a5' : '#e5e7eb'}`, backgroundColor: i < 3 ? '#f0fdf9' : '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16 }}>
+              {i < 3 ? '⭐' : ''}
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  // ── lottie-element ───────────────────────────────────────
+  if (type === 'lottie-element') {
+    return (
+      <div style={{ width: s.width ?? 200, height: s.height ?? 200, backgroundColor: '#fafafa', borderRadius: s.borderRadius ?? 8, border: '1px dashed #d1d5db', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+        <div style={{ fontSize: 48 }}>✨</div>
+        <span style={{ fontSize: 12, color: '#9ca3af' }}>Lottie アニメーション</span>
+      </div>
+    );
+  }
+
+  // ── chat-element ─────────────────────────────────────────
+  if (type === 'chat-element') {
+    return (
+      <div style={{ width: s.width ?? 320, height: s.height ?? 400, backgroundColor: '#f5f5f5', borderRadius: s.borderRadius ?? 12, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+        <div style={{ padding: '12px 16px', backgroundColor: '#1ec8a5', color: '#fff', fontWeight: 'bold' }}>{label || 'チャット'}</div>
+        <div style={{ flex: 1, padding: 12, display: 'flex', flexDirection: 'column', gap: 8, overflow: 'hidden' }}>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <div style={{ width: 28, height: 28, borderRadius: '50%', backgroundColor: '#d1d5db', flexShrink: 0 }} />
+            <div style={{ backgroundColor: '#fff', borderRadius: '4px 12px 12px 12px', padding: '6px 10px', maxWidth: '70%', fontSize: 12 }}>こんにちは！</div>
+          </div>
+          <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+            <div style={{ backgroundColor: '#1ec8a5', borderRadius: '12px 4px 12px 12px', padding: '6px 10px', maxWidth: '70%', fontSize: 12, color: '#fff' }}>よろしくお願いします</div>
+          </div>
+        </div>
+        <div style={{ padding: '8px 12px', backgroundColor: '#fff', borderTop: '1px solid #e5e7eb', display: 'flex', gap: 8 }}>
+          <div style={{ flex: 1, height: 32, backgroundColor: '#f3f4f6', borderRadius: 16 }} />
+          <div style={{ width: 32, height: 32, borderRadius: '50%', backgroundColor: '#1ec8a5' }} />
+        </div>
+      </div>
+    );
+  }
+
+  // ── star-rating ──────────────────────────────────────────
+  if (type === 'star-rating') {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: 8 }}>
+        {label && <span style={{ fontSize: s.fontSize ?? 14, color: s.color ?? '#374151' }}>{label}</span>}
+        <div style={{ display: 'flex', gap: 4 }}>
+          {[1, 2, 3, 4, 5].map(star => (
+            <span key={star} style={{ fontSize: 28, color: star <= 3 ? '#f59e0b' : '#d1d5db', cursor: interactive ? 'pointer' : 'default' }}>★</span>
+          ))}
+        </div>
       </div>
     );
   }

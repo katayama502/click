@@ -14,16 +14,21 @@ export type ActionType =
   | 'custom';
 
 export type ElementType =
-  // Basic
+  // ベーシック
   | 'text' | 'shape' | 'line' | 'icon' | 'image' | 'video'
-  // Action
-  | 'button' | 'button2' | 'switch-element' | 'toggle-element'
-  // Navigation
+  // アクション
+  | 'button' | 'button2' | 'switch-element' | 'toggle-element' | 'check'
+  // ナビゲーション
   | 'header' | 'tabbar'
-  // Input
+  // インプット
   | 'form' | 'input' | 'password-input' | 'date-input' | 'file-input' | 'image-input'
-  // Output
-  | 'list' | 'horizontal-list' | 'db-table' | 'carousel' | 'calendar' | 'dropdown' | 'search-element';
+  // アウトプット
+  | 'list' | 'card-list' | 'custom-list' | 'horizontal-list' | 'tag-list' | 'avatar-list'
+  | 'carousel' | 'stack-carousel' | 'db-table' | 'calendar' | 'dropdown' | 'search-element'
+  | 'barcode' | 'qr-code'
+  // 外部連携
+  | 'line-social' | 'map-element' | 'web-view' | 'youtube-element' | 'vimeo-element'
+  | 'stamp-element' | 'stamp-card' | 'lottie-element' | 'chat-element' | 'star-rating';
 
 // ============================================================
 // Auth

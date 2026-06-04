@@ -61,12 +61,15 @@ export default function LoginPage() {
   };
 
   const inputClass = (hasError?: string) =>
-    `w-full pl-10 pr-4 py-2.5 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent transition-colors ${
+    `w-full pl-10 pr-4 py-2.5 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand transition-colors ${
       hasError ? 'border-red-400 bg-red-50' : 'border-gray-200 bg-white hover:border-gray-300'
     }`;
 
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+      {/* Brand gradient top accent bar */}
+      <div className="h-1 bg-gradient-to-r from-brand-400 via-brand to-brand-600 fixed top-0 left-0 right-0 z-50" />
+
       <div className="w-full max-w-sm">
         {/* Logo */}
         <div className="flex items-center justify-center gap-2.5 mb-8">
@@ -77,7 +80,7 @@ export default function LoginPage() {
         </div>
 
         {/* Card */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8">
+        <div className="bg-white rounded-2xl shadow-md border border-gray-100 p-8">
           {/* Header */}
           <div
             style={{
@@ -173,13 +176,44 @@ export default function LoginPage() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full bg-brand hover:bg-brand-600 disabled:opacity-60 disabled:cursor-not-allowed text-white font-semibold py-2.5 rounded-lg transition-colors flex items-center justify-center gap-2 text-sm mt-2"
+                className="w-full bg-brand hover:bg-brand-600 disabled:opacity-60 disabled:cursor-not-allowed text-white font-semibold py-3 rounded-xl transition-all duration-200 active:scale-[0.99] shadow-lg shadow-brand/20 flex items-center justify-center gap-2 text-sm mt-2"
               >
                 {loading ? (
                   <><Loader2 size={14} className="animate-spin" />処理中...</>
                 ) : mode === 'login' ? 'ログイン' : 'アカウントを作成'}
               </button>
             </form>
+
+            {/* Demo login divider */}
+            <div className="mt-5">
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-gray-100" />
+                </div>
+                <div className="relative flex justify-center text-xs">
+                  <span className="px-2 bg-white text-gray-400">またはデモで試す</span>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setVisible(false);
+                  setTimeout(() => {
+                    setMode('register');
+                    setErrors({});
+                    setEmail('demo@click.example.com');
+                    setName('デモユーザー');
+                    setPassword('demo123456');
+                    setShowPass(false);
+                    setVisible(true);
+                  }, 150);
+                }}
+                className="mt-3 w-full border border-gray-200 text-gray-600 py-2.5 rounded-xl text-sm hover:bg-gray-50 transition-colors flex items-center justify-center gap-2"
+              >
+                <span className="text-base">🎮</span>
+                デモアカウントで試す
+              </button>
+            </div>
 
             {/* Mode toggle */}
             <p className="mt-5 text-center text-xs text-gray-500">
@@ -191,9 +225,9 @@ export default function LoginPage() {
           </div>
         </div>
 
-        {/* Footer note */}
+        {/* Tagline */}
         <p className="mt-4 text-center text-xs text-gray-400">
-          任意のメールアドレスとパスワードで登録できます
+          ノーコードで、アイデアをアプリに。
         </p>
       </div>
     </div>
