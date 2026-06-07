@@ -47,7 +47,7 @@ export default function LoginPage() {
     await new Promise(r => setTimeout(r, 400));
 
     if (mode === 'login') {
-      const ok = login(email, password);
+      const ok = await login(email, password);
       if (ok) {
         router.replace('/workspace');
       } else {

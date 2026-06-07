@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import {
   Database, Lock, MoreHorizontal, Plus, Search,
   Trash2, Download, Upload, ChevronLeft, ChevronRight,
-  Type, Hash, ToggleLeft, Calendar, Clock, Image, File, Link2,
+  Type, Hash, ToggleLeft, Calendar, Clock, Image as ImageIcon, File, Link2,
   Pencil, Check, X, ChevronDown, Smartphone, Tablet, Monitor,
   Undo2, Redo2, Eye, Settings, ExternalLink,
 } from 'lucide-react';
@@ -30,7 +30,7 @@ const FIELD_TYPE_ICONS: Record<FieldType, React.ReactNode> = {
   boolean:  <ToggleLeft size={12} />,
   datetime: <Clock size={12} />,
   date:     <Calendar size={12} />,
-  image:    <Image size={12} />,
+  image:    <ImageIcon size={12} />,
   file:     <File size={12} />,
   relation: <Link2 size={12} />,
 };

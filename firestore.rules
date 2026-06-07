@@ -1,0 +1,23 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Users can only access their own apps
+    match /users/{userId}/apps/{appId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+
+      match /pages/{pageId} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+
+      match /tables/{tableId} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+    }
+
+    // Public app access for published apps (read only)
+    match /published/{appId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+  }
+}
