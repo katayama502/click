@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import {
   Type, Lock, Hash, ToggleLeft, Calendar, Clock,
-  Image, File, Link2, X, ChevronDown,
+  Image as ImageIcon, File, Link2, X, ChevronDown,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { FieldType, DBTable } from '@/lib/types';
@@ -21,7 +21,7 @@ const FIELD_TYPES: FieldTypeOption[] = [
   { value: 'boolean',  label: 'True/False',      icon: <ToggleLeft size={18} /> },
   { value: 'datetime', label: '日時',             icon: <Clock size={18} /> },
   { value: 'date',     label: '日付',             icon: <Calendar size={18} /> },
-  { value: 'image',    label: '画像',             icon: <Image size={18} /> },
+  { value: 'image',    label: '画像',             icon: <ImageIcon size={18} /> },
   { value: 'file',     label: 'ファイル',           icon: <File size={18} /> },
   { value: 'relation', label: 'データの紐付け',     icon: <Link2 size={18} /> },
 ];
