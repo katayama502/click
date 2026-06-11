@@ -55,8 +55,13 @@ export default function LoginPage() {
         setLoading(false);
       }
     } else {
-      register(email, name, password);
-      router.replace('/workspace');
+      try {
+        await register(email, name, password);
+        router.replace('/workspace');
+      } catch {
+        setErrors({ general: 'アカウント作成に失敗しました。別のメールアドレスをお試しください' });
+        setLoading(false);
+      }
     }
   };
 

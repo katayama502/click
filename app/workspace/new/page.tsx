@@ -3,6 +3,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useStore } from '@/lib/store';
+import { useHydrated } from '@/lib/useHydrated';
 import type { DeviceType } from '@/lib/types';
 
 // ────────────────────────────────────────────────────────────
@@ -558,12 +559,14 @@ export default function NewAppPage() {
   const router = useRouter();
   const { currentUser, createApp } = useStore();
 
-  // Auth guard
+  // Auth guard (ハイドレーション完了まで判定しない)
+  const hydrated = useHydrated();
   useEffect(() => {
+    if (!hydrated) return;
     if (!currentUser) {
       router.replace('/login');
     }
-  }, [currentUser, router]);
+  }, [hydrated, currentUser, router]);
 
   // Wizard state
   const [currentStep, setCurrentStep] = useState<1 | 2 | 3 | 4>(1);
@@ -599,7 +602,7 @@ export default function NewAppPage() {
     }
   }, [deviceSelection]);
 
-  if (!currentUser) return null;
+  if (!hydrated || !currentUser) return null;
 
   // ── Navigation ──────────────────────────────────────────
   function handleNext() {

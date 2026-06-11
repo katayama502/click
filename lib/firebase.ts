@@ -11,9 +11,13 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 };
 
+// プレースホルダ(your_api_key_here 等)が残っている場合はFirebase無効としてローカル動作にフォールバック
+const isRealValue = (v: string | undefined): boolean =>
+  !!v && !/^(your_|REPLACE|xxx)/i.test(v);
+
 export const firebaseEnabled = !!(
-  process.env.NEXT_PUBLIC_FIREBASE_API_KEY &&
-  process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID
+  isRealValue(process.env.NEXT_PUBLIC_FIREBASE_API_KEY) &&
+  isRealValue(process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID)
 );
 
 let app: FirebaseApp | null = null;

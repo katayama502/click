@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useStore } from '@/lib/store';
+import { useHydrated } from '@/lib/useHydrated';
 import type { App } from '@/lib/types';
 import {
   Plus,
@@ -373,10 +374,12 @@ export default function WorkspacePage() {
   const [showUserMenu, setShowUserMenu] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
 
-  // Auth guard
+  // Auth guard (ハイドレーション完了まで判定しない)
+  const hydrated = useHydrated();
   useEffect(() => {
+    if (!hydrated) return;
     if (!currentUser) router.replace('/login');
-  }, [currentUser, router]);
+  }, [hydrated, currentUser, router]);
 
   // Close user menu on outside click
   useEffect(() => {
@@ -389,7 +392,7 @@ export default function WorkspacePage() {
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
-  if (!currentUser) return null;
+  if (!hydrated || !currentUser) return null;
 
   const wsName = workspace?.name ?? `${currentUser.name}のワークスペース`;
   const MAX_APPS = 10;

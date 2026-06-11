@@ -1,636 +1,22 @@
 'use client';
 
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useStore } from '@/lib/store';
-import type { Element, Page, Action } from '@/lib/types';
-
-// ─────────────────────────────────────────────
-// Inline element renderer (preview-mode)
-// ─────────────────────────────────────────────
-function PreviewElementContent({ element }: { element: Element }) {
-  const s = element.style;
-
-  switch (element.type) {
-    case 'text':
-      return (
-        <div
-          className="w-full h-full flex items-center overflow-hidden"
-          style={{
-            color: s.color ?? '#1f2937',
-            fontSize: s.fontSize ?? 16,
-            fontWeight: s.fontWeight ?? 'normal',
-            textAlign: s.textAlign ?? 'left',
-            padding: s.padding ?? '0 4px',
-          }}
-        >
-          {element.content ?? 'テキスト'}
-        </div>
-      );
-
-    case 'button':
-      return (
-        <div
-          className="w-full h-full flex items-center justify-center cursor-pointer select-none"
-          style={{
-            backgroundColor: s.backgroundColor ?? '#1ec8a5',
-            color: s.color ?? '#ffffff',
-            fontSize: s.fontSize ?? 14,
-            fontWeight: s.fontWeight ?? '500',
-            borderRadius: s.borderRadius ?? 8,
-          }}
-        >
-          {element.content ?? 'ボタン'}
-        </div>
-      );
-
-    case 'button2':
-      return (
-        <div
-          className="w-full h-full flex items-center justify-center cursor-pointer select-none border"
-          style={{
-            backgroundColor: 'transparent',
-            color: s.color ?? '#1ec8a5',
-            borderColor: s.color ?? '#1ec8a5',
-            fontSize: s.fontSize ?? 14,
-            fontWeight: s.fontWeight ?? '500',
-            borderRadius: s.borderRadius ?? 8,
-          }}
-        >
-          {element.content ?? 'ボタン2'}
-        </div>
-      );
-
-    case 'input':
-      return (
-        <input
-          type="text"
-          placeholder={element.placeholder ?? 'テキストを入力'}
-          className="w-full h-full px-3 border outline-none focus:border-brand"
-          style={{
-            backgroundColor: s.backgroundColor ?? '#ffffff',
-            borderColor: '#d1d5db',
-            borderRadius: s.borderRadius ?? 8,
-            fontSize: s.fontSize ?? 14,
-            color: s.color ?? '#1f2937',
-          }}
-        />
-      );
-
-    case 'password-input':
-      return (
-        <input
-          type="password"
-          placeholder={element.placeholder ?? 'パスワードを入力'}
-          className="w-full h-full px-3 border outline-none focus:border-brand"
-          style={{
-            backgroundColor: s.backgroundColor ?? '#ffffff',
-            borderColor: '#d1d5db',
-            borderRadius: s.borderRadius ?? 8,
-            fontSize: s.fontSize ?? 14,
-          }}
-        />
-      );
-
-    case 'date-input':
-      return (
-        <input
-          type="date"
-          className="w-full h-full px-3 border outline-none focus:border-brand"
-          style={{
-            backgroundColor: s.backgroundColor ?? '#ffffff',
-            borderColor: '#d1d5db',
-            borderRadius: s.borderRadius ?? 8,
-            fontSize: s.fontSize ?? 14,
-          }}
-        />
-      );
-
-    case 'shape':
-      return (
-        <div
-          className="w-full h-full"
-          style={{
-            backgroundColor: s.backgroundColor ?? '#e5e7eb',
-            borderRadius: s.borderRadius ?? 8,
-            border: s.border,
-          }}
-        />
-      );
-
-    case 'image':
-    case 'image-input':
-      return element.src ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={element.src}
-          alt={element.label ?? ''}
-          className="w-full h-full object-cover"
-          style={{ borderRadius: s.borderRadius ?? 0 }}
-        />
-      ) : (
-        <div
-          className="w-full h-full flex flex-col items-center justify-center gap-1"
-          style={{ backgroundColor: s.backgroundColor ?? '#f3f4f6', borderRadius: s.borderRadius ?? 0 }}
-        >
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="1.5">
-            <rect x="3" y="3" width="18" height="18" rx="2" />
-            <circle cx="8.5" cy="8.5" r="1.5" />
-            <polyline points="21 15 16 10 5 21" />
-          </svg>
-          <span className="text-xs text-gray-400">{element.type === 'image-input' ? '画像を選択' : '画像'}</span>
-        </div>
-      );
-
-    case 'video':
-      return (
-        <div
-          className="w-full h-full flex flex-col items-center justify-center gap-1"
-          style={{ backgroundColor: s.backgroundColor ?? '#1f2937', borderRadius: s.borderRadius ?? 0 }}
-        >
-          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="1.5">
-            <polygon points="5 3 19 12 5 21 5 3" />
-          </svg>
-          <span className="text-xs text-gray-400">ビデオ</span>
-        </div>
-      );
-
-    case 'icon':
-      return (
-        <div className="w-full h-full flex items-center justify-center">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={s.color ?? '#1ec8a5'} strokeWidth="1.5">
-            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-          </svg>
-        </div>
-      );
-
-    case 'line':
-      return (
-        <div
-          className="w-full"
-          style={{
-            borderTop: `${s.borderWidth ?? 1}px solid ${s.borderColor ?? '#d1d5db'}`,
-            marginTop: '50%',
-          }}
-        />
-      );
-
-    case 'header':
-      return (
-        <div
-          className="w-full h-full flex items-center px-4 border-b"
-          style={{
-            backgroundColor: s.backgroundColor ?? '#ffffff',
-            borderColor: '#e5e7eb',
-          }}
-        >
-          <span className="font-semibold text-gray-800 text-base">{element.content ?? 'ヘッダー'}</span>
-        </div>
-      );
-
-    case 'tabbar':
-      return (
-        <div
-          className="w-full h-full flex items-center border-t"
-          style={{
-            backgroundColor: s.backgroundColor ?? '#ffffff',
-            borderColor: '#e5e7eb',
-          }}
-        >
-          {['ホーム', '検索', '設定'].map((label, i) => (
-            <div key={i} className="flex-1 flex flex-col items-center justify-center gap-0.5 py-1">
-              <div className="w-5 h-5 rounded bg-gray-200" />
-              <span className="text-[10px] text-gray-500">{label}</span>
-            </div>
-          ))}
-        </div>
-      );
-
-    case 'list':
-      return (
-        <div
-          className="w-full h-full overflow-hidden"
-          style={{ backgroundColor: s.backgroundColor ?? '#ffffff', borderRadius: s.borderRadius ?? 0 }}
-        >
-          {[1, 2, 3].map(i => (
-            <div key={i} className="flex items-center gap-3 px-4 py-3 border-b border-gray-100">
-              <div className="w-8 h-8 rounded-full bg-gray-200 flex-shrink-0" />
-              <div className="flex-1 space-y-1">
-                <div className="h-3 bg-gray-200 rounded w-3/4" />
-                <div className="h-2 bg-gray-100 rounded w-1/2" />
-              </div>
-            </div>
-          ))}
-        </div>
-      );
-
-    case 'horizontal-list':
-      return (
-        <div
-          className="w-full h-full flex items-center gap-3 px-3 overflow-hidden"
-          style={{ backgroundColor: s.backgroundColor ?? '#ffffff', borderRadius: s.borderRadius ?? 0 }}
-        >
-          {[1, 2, 3].map(i => (
-            <div key={i} className="flex-shrink-0 w-20 h-20 rounded-lg bg-gray-200" />
-          ))}
-        </div>
-      );
-
-    case 'carousel':
-      return (
-        <div
-          className="w-full h-full flex items-center justify-center relative overflow-hidden"
-          style={{ backgroundColor: s.backgroundColor ?? '#f3f4f6', borderRadius: s.borderRadius ?? 8 }}
-        >
-          <div className="text-xs text-gray-400">カルーセル</div>
-          <div className="absolute bottom-2 left-0 right-0 flex justify-center gap-1">
-            {[0, 1, 2].map(i => (
-              <div
-                key={i}
-                className="w-1.5 h-1.5 rounded-full"
-                style={{ backgroundColor: i === 0 ? '#1ec8a5' : '#d1d5db' }}
-              />
-            ))}
-          </div>
-        </div>
-      );
-
-    case 'calendar':
-      return (
-        <div
-          className="w-full h-full overflow-hidden p-2"
-          style={{ backgroundColor: s.backgroundColor ?? '#ffffff', borderRadius: s.borderRadius ?? 8 }}
-        >
-          <div className="text-xs font-semibold text-gray-700 mb-2 text-center">2024年1月</div>
-          <div className="grid grid-cols-7 gap-0.5">
-            {['日', '月', '火', '水', '木', '金', '土'].map(d => (
-              <div key={d} className="text-[9px] text-gray-400 text-center">{d}</div>
-            ))}
-            {Array.from({ length: 31 }, (_, i) => (
-              <div
-                key={i}
-                className="text-[9px] text-center rounded py-0.5 cursor-pointer hover:bg-gray-100"
-                style={i + 1 === 15 ? { backgroundColor: '#1ec8a5', color: '#fff' } : { color: '#4b5563' }}
-              >
-                {i + 1}
-              </div>
-            ))}
-          </div>
-        </div>
-      );
-
-    case 'form':
-      return (
-        <div
-          className="w-full h-full overflow-hidden p-3 space-y-2"
-          style={{ backgroundColor: s.backgroundColor ?? '#ffffff', borderRadius: s.borderRadius ?? 8 }}
-        >
-          {['名前', 'メール'].map(label => (
-            <div key={label}>
-              <div className="text-[10px] text-gray-500 mb-0.5">{label}</div>
-              <input
-                type="text"
-                placeholder="入力してください"
-                className="w-full h-8 border border-gray-200 rounded px-2 text-xs text-gray-600 outline-none focus:border-brand"
-              />
-            </div>
-          ))}
-          <button
-            className="w-full h-8 rounded text-xs text-white font-medium"
-            style={{ backgroundColor: '#1ec8a5' }}
-          >
-            送信
-          </button>
-        </div>
-      );
-
-    case 'db-table':
-      return (
-        <div
-          className="w-full h-full overflow-hidden"
-          style={{ backgroundColor: s.backgroundColor ?? '#ffffff', borderRadius: s.borderRadius ?? 0 }}
-        >
-          <div className="flex border-b border-gray-200 bg-gray-50">
-            {['ID', '名前', '値'].map(h => (
-              <div key={h} className="flex-1 text-[10px] font-semibold text-gray-500 px-2 py-1.5 truncate">{h}</div>
-            ))}
-          </div>
-          {[1, 2, 3].map(i => (
-            <div key={i} className="flex border-b border-gray-100">
-              {[String(i), `レコード${i}`, `値${i}`].map((v, j) => (
-                <div key={j} className="flex-1 text-[10px] text-gray-600 px-2 py-1.5 truncate">{v}</div>
-              ))}
-            </div>
-          ))}
-        </div>
-      );
-
-    case 'dropdown':
-      return (
-        <div
-          className="w-full h-full flex items-center justify-between px-3 border cursor-pointer"
-          style={{
-            backgroundColor: s.backgroundColor ?? '#ffffff',
-            borderColor: '#d1d5db',
-            borderRadius: s.borderRadius ?? 8,
-          }}
-        >
-          <span className="text-sm text-gray-400">{element.placeholder ?? '選択してください'}</span>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2">
-            <polyline points="6 9 12 15 18 9" />
-          </svg>
-        </div>
-      );
-
-    case 'search-element':
-      return (
-        <div
-          className="w-full h-full flex items-center gap-2 px-3 border"
-          style={{
-            backgroundColor: s.backgroundColor ?? '#f9fafb',
-            borderColor: '#e5e7eb',
-            borderRadius: s.borderRadius ?? 20,
-          }}
-        >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2">
-            <circle cx="11" cy="11" r="8" />
-            <line x1="21" y1="21" x2="16.65" y2="16.65" />
-          </svg>
-          <input
-            type="text"
-            placeholder={element.placeholder ?? '検索...'}
-            className="flex-1 bg-transparent outline-none text-sm text-gray-600 placeholder-gray-400"
-          />
-        </div>
-      );
-
-    case 'switch-element':
-      return (
-        <div className="w-full h-full flex items-center justify-between px-2">
-          <span className="text-sm text-gray-700">{element.label ?? 'スイッチ'}</span>
-          <div className="w-10 h-6 rounded-full flex items-center px-0.5 cursor-pointer" style={{ backgroundColor: '#1ec8a5' }}>
-            <div className="w-5 h-5 bg-white rounded-full shadow ml-auto" />
-          </div>
-        </div>
-      );
-
-    case 'toggle-element':
-      return (
-        <div className="w-full h-full flex items-center justify-between px-2">
-          <span className="text-sm text-gray-700">{element.label ?? 'トグル'}</span>
-          <div className="w-8 h-8 border-2 rounded flex items-center justify-center cursor-pointer" style={{ borderColor: '#1ec8a5' }}>
-            <div className="w-4 h-4 rounded-sm" style={{ backgroundColor: '#1ec8a5' }} />
-          </div>
-        </div>
-      );
-
-    case 'file-input':
-      return (
-        <div
-          className="w-full h-full flex flex-col items-center justify-center gap-1 border-2 border-dashed cursor-pointer"
-          style={{
-            borderColor: '#d1d5db',
-            borderRadius: s.borderRadius ?? 8,
-            backgroundColor: s.backgroundColor ?? '#f9fafb',
-          }}
-        >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="1.5">
-            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-            <polyline points="17 8 12 3 7 8" />
-            <line x1="12" y1="3" x2="12" y2="15" />
-          </svg>
-          <span className="text-xs text-gray-400">ファイルを選択</span>
-        </div>
-      );
-
-    case 'check':
-      return (
-        <div className="w-full h-full flex items-center gap-2 px-2">
-          <div className="w-5 h-5 flex-shrink-0 rounded flex items-center justify-center" style={{ backgroundColor: '#1ec8a5' }}>
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3">
-              <polyline points="20 6 9 17 4 12" />
-            </svg>
-          </div>
-          <span className="text-sm" style={{ color: s.color ?? '#374151' }}>{element.label ?? 'チェック項目'}</span>
-        </div>
-      );
-
-    case 'card-list':
-      return (
-        <div className="w-full h-full overflow-hidden space-y-2 p-2" style={{ backgroundColor: s.backgroundColor ?? '#f9fafb', borderRadius: s.borderRadius ?? 8 }}>
-          {[1, 2].map(i => (
-            <div key={i} className="flex items-center gap-3 bg-white rounded-lg px-3 py-2 shadow-sm">
-              <div className="w-10 h-10 rounded-lg bg-gray-200 flex-shrink-0" />
-              <div className="flex-1 space-y-1">
-                <div className="h-3 bg-gray-200 rounded w-2/3" />
-                <div className="h-2 bg-gray-100 rounded w-1/2" />
-              </div>
-            </div>
-          ))}
-        </div>
-      );
-
-    case 'custom-list':
-      return (
-        <div className="w-full h-full overflow-hidden" style={{ backgroundColor: s.backgroundColor ?? '#ffffff', borderRadius: s.borderRadius ?? 0 }}>
-          {[1, 2, 3].map(i => (
-            <div key={i} className="flex items-center gap-2 px-3 py-2 border-b border-gray-100">
-              <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: '#1ec8a5' }} />
-              <div className="h-3 bg-gray-200 rounded flex-1" />
-            </div>
-          ))}
-        </div>
-      );
-
-    case 'tag-list':
-      return (
-        <div className="w-full h-full flex flex-wrap gap-1.5 items-start content-start p-2" style={{ backgroundColor: s.backgroundColor ?? 'transparent' }}>
-          {['タグ1', 'タグ2', 'タグ3', 'タグ4'].map(tag => (
-            <div key={tag} className="px-2 py-0.5 rounded-full text-[11px] font-medium" style={{ backgroundColor: '#1ec8a522', color: '#1ec8a5' }}>{tag}</div>
-          ))}
-        </div>
-      );
-
-    case 'avatar-list':
-      return (
-        <div className="w-full h-full flex items-center px-2">
-          {[1, 2, 3, 4].map(i => (
-            <div key={i} className="w-8 h-8 rounded-full border-2 border-white bg-gray-300 flex-shrink-0 flex items-center justify-center text-xs font-semibold text-gray-600" style={{ marginLeft: i > 1 ? -8 : 0, zIndex: 10 - i }}>
-              {i}
-            </div>
-          ))}
-          <span className="ml-3 text-xs text-gray-500">+12</span>
-        </div>
-      );
-
-    case 'stack-carousel':
-      return (
-        <div className="w-full h-full relative flex items-center justify-center overflow-hidden" style={{ backgroundColor: s.backgroundColor ?? '#f3f4f6', borderRadius: s.borderRadius ?? 12 }}>
-          <div className="absolute inset-4 rounded-lg bg-gray-300 opacity-50" style={{ transform: 'rotate(3deg)' }} />
-          <div className="absolute inset-3 rounded-lg bg-gray-200 opacity-70" style={{ transform: 'rotate(-2deg)' }} />
-          <div className="absolute inset-2 rounded-lg bg-white shadow flex items-center justify-center">
-            <span className="text-xs text-gray-400">スタック</span>
-          </div>
-        </div>
-      );
-
-    case 'barcode':
-      return (
-        <div className="w-full h-full flex flex-col items-center justify-center gap-1 p-2" style={{ backgroundColor: s.backgroundColor ?? '#ffffff', borderRadius: s.borderRadius ?? 0 }}>
-          <div className="flex items-end gap-px h-10">
-            {Array.from({ length: 28 }, (_, i) => (
-              <div key={i} className="bg-gray-800" style={{ width: i % 3 === 0 ? 3 : 2, height: i % 5 === 0 ? '100%' : i % 2 === 0 ? '80%' : '90%' }} />
-            ))}
-          </div>
-          <span className="text-[10px] tracking-widest text-gray-600">123456789</span>
-        </div>
-      );
-
-    case 'qr-code':
-      return (
-        <div className="w-full h-full flex flex-col items-center justify-center gap-1" style={{ backgroundColor: s.backgroundColor ?? '#ffffff', borderRadius: s.borderRadius ?? 0 }}>
-          <div className="grid grid-cols-5 gap-px p-1 bg-white">
-            {Array.from({ length: 25 }, (_, i) => (
-              <div key={i} className="w-3 h-3" style={{ backgroundColor: [0,1,2,5,6,7,10,12,17,18,19,20,21,23,24].includes(i) ? '#1f2937' : '#ffffff' }} />
-            ))}
-          </div>
-          <span className="text-[9px] text-gray-400">QRコード</span>
-        </div>
-      );
-
-    case 'line-social':
-      return (
-        <div className="w-full h-full flex items-center justify-center rounded" style={{ backgroundColor: s.backgroundColor ?? '#06C755', borderRadius: s.borderRadius ?? 8 }}>
-          <span className="text-white font-bold text-sm">LINE でログイン</span>
-        </div>
-      );
-
-    case 'map-element':
-      return (
-        <div className="w-full h-full relative overflow-hidden" style={{ backgroundColor: '#e5e7eb', borderRadius: s.borderRadius ?? 0 }}>
-          <div className="absolute inset-0 opacity-30" style={{ backgroundImage: 'linear-gradient(#9ca3af 1px, transparent 1px), linear-gradient(90deg, #9ca3af 1px, transparent 1px)', backgroundSize: '20px 20px' }} />
-          <div className="absolute inset-0 flex items-center justify-center">
-            <div className="flex flex-col items-center gap-1">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="#ef4444" stroke="none">
-                <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
-              </svg>
-              <span className="text-[10px] text-gray-600 font-medium bg-white px-1 rounded">地図</span>
-            </div>
-          </div>
-        </div>
-      );
-
-    case 'web-view':
-      return (
-        <div className="w-full h-full overflow-hidden" style={{ backgroundColor: '#ffffff', borderRadius: s.borderRadius ?? 0 }}>
-          <div className="flex items-center gap-1.5 px-2 py-1.5 bg-gray-100 border-b border-gray-200">
-            <div className="flex gap-1">
-              {['#ef4444', '#f59e0b', '#22c55e'].map(c => (
-                <div key={c} className="w-2 h-2 rounded-full" style={{ backgroundColor: c }} />
-              ))}
-            </div>
-            <div className="flex-1 h-4 bg-white rounded-sm border border-gray-200 flex items-center px-1">
-              <span className="text-[9px] text-gray-400 truncate">https://example.com</span>
-            </div>
-          </div>
-          <div className="p-2 space-y-1.5">
-            <div className="h-3 bg-gray-200 rounded w-3/4" />
-            <div className="h-2 bg-gray-100 rounded w-full" />
-          </div>
-        </div>
-      );
-
-    case 'youtube-element':
-      return (
-        <div className="w-full h-full flex items-center justify-center" style={{ backgroundColor: '#000', borderRadius: s.borderRadius ?? 0 }}>
-          <div className="w-12 h-8 bg-red-600 rounded-lg flex items-center justify-center">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="white"><polygon points="5 3 19 12 5 21 5 3" /></svg>
-          </div>
-        </div>
-      );
-
-    case 'vimeo-element':
-      return (
-        <div className="w-full h-full flex items-center justify-center" style={{ backgroundColor: '#1ab7ea', borderRadius: s.borderRadius ?? 0 }}>
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="white">
-            <path d="M22 7.42c-.09 2.01-1.49 4.76-4.2 8.24C15.02 19.2 12.65 21 10.6 21c-1.26 0-2.33-1.16-3.2-3.49l-1.74-6.38C5.03 8.8 4.34 7.64 3.6 7.64c-.16 0-.71.33-1.66.99L1 7.51c1.04-.92 2.07-1.83 3.08-2.76C5.5 3.52 6.55 2.88 7.24 2.8c1.66-.16 2.68.97 3.07 3.4.41 2.62.7 4.25.86 4.9.48 2.16 1 3.24 1.55 3.24.44 0 1.1-.69 1.98-2.08.88-1.39 1.35-2.44 1.41-3.17.12-1.2-.34-1.8-1.41-1.8-.5 0-1.02.11-1.55.34.97-3.15 2.8-4.68 5.53-4.6C20.6 3.11 22.12 4.56 22 7.42z"/>
-          </svg>
-        </div>
-      );
-
-    case 'stamp-element':
-      return (
-        <div className="w-full h-full flex items-center justify-center" style={{ backgroundColor: s.backgroundColor ?? 'transparent' }}>
-          <div className="w-16 h-16 rounded-full border-4 flex items-center justify-center" style={{ borderColor: s.color ?? '#1ec8a5' }}>
-            <span className="text-[11px] font-bold" style={{ color: s.color ?? '#1ec8a5' }}>STAMP</span>
-          </div>
-        </div>
-      );
-
-    case 'stamp-card':
-      return (
-        <div className="w-full h-full overflow-hidden p-2" style={{ backgroundColor: s.backgroundColor ?? '#fff8e6', borderRadius: s.borderRadius ?? 12 }}>
-          <div className="text-[10px] font-semibold text-gray-600 mb-1.5">スタンプカード</div>
-          <div className="grid grid-cols-5 gap-1">
-            {Array.from({ length: 10 }, (_, i) => (
-              <div key={i} className="aspect-square rounded-full flex items-center justify-center border-2" style={{ borderColor: i < 4 ? '#1ec8a5' : '#e5e7eb', backgroundColor: i < 4 ? '#1ec8a5' : 'transparent' }}>
-                {i < 4 && <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3"><polyline points="20 6 9 17 4 12" /></svg>}
-              </div>
-            ))}
-          </div>
-        </div>
-      );
-
-    case 'lottie-element':
-      return (
-        <div className="w-full h-full flex flex-col items-center justify-center gap-1" style={{ backgroundColor: s.backgroundColor ?? 'transparent' }}>
-          <div className="relative w-12 h-12">
-            <div className="absolute inset-0 rounded-full border-4 opacity-30" style={{ borderColor: '#1ec8a5', animation: 'ping 1s cubic-bezier(0,0,0.2,1) infinite' }} />
-            <div className="absolute inset-2 rounded-full" style={{ backgroundColor: '#1ec8a5', opacity: 0.6 }} />
-          </div>
-          <span className="text-[10px] text-gray-400">Lottie</span>
-        </div>
-      );
-
-    case 'chat-element':
-      return (
-        <div className="w-full h-full overflow-hidden p-2 space-y-2" style={{ backgroundColor: s.backgroundColor ?? '#f9fafb', borderRadius: s.borderRadius ?? 8 }}>
-          <div className="flex items-end gap-1.5">
-            <div className="w-6 h-6 rounded-full bg-gray-300 flex-shrink-0" />
-            <div className="max-w-[70%] bg-white rounded-2xl rounded-bl-sm px-2.5 py-1.5 shadow-sm">
-              <div className="h-2 bg-gray-200 rounded w-20" />
-            </div>
-          </div>
-          <div className="flex items-end gap-1.5 justify-end">
-            <div className="max-w-[70%] rounded-2xl rounded-br-sm px-2.5 py-1.5" style={{ backgroundColor: '#1ec8a5' }}>
-              <div className="h-2 rounded w-16" style={{ backgroundColor: 'rgba(255,255,255,0.5)' }} />
-            </div>
-          </div>
-        </div>
-      );
-
-    case 'star-rating':
-      return (
-        <div className="w-full h-full flex items-center justify-center gap-1">
-          {[1, 2, 3, 4, 5].map(i => (
-            <svg key={i} width="20" height="20" viewBox="0 0 24 24" fill={i <= 4 ? (s.color ?? '#f59e0b') : 'none'} stroke={s.color ?? '#f59e0b'} strokeWidth="1.5">
-              <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-            </svg>
-          ))}
-        </div>
-      );
-
-    default:
-      return (
-        <div
-          className="w-full h-full flex items-center justify-center"
-          style={{ backgroundColor: s.backgroundColor ?? '#f3f4f6' }}
-        >
-          <span className="text-xs text-gray-400">{element.type}</span>
-        </div>
-      );
-  }
-}
+import { useHydrated } from '@/lib/useHydrated';
+import {
+  runActions,
+  getAppUserSession,
+  resolveStartPage,
+  type ActionContext,
+} from '@/lib/runtime';
+import type { AppUserSession, DBRecord, DBTable, Element } from '@/lib/types';
+import {
+  RuntimeElement,
+  ToastOverlay,
+  type PreviewToast,
+  type RuntimeEnv,
+} from '@/components/builder/PreviewRuntime';
 
 // ─────────────────────────────────────────────
 // Device sizes
@@ -903,6 +289,15 @@ function DesktopFrame({
 }
 
 // ─────────────────────────────────────────────
+// Page navigation history entry(レコードコンテキストも保持)
+// ─────────────────────────────────────────────
+interface HistoryEntry {
+  pageId: string;
+  record: DBRecord | null;
+  table: DBTable | null;
+}
+
+// ─────────────────────────────────────────────
 // Main Preview Page
 // ─────────────────────────────────────────────
 export default function PreviewPage({ params }: { params: { id: string } }) {
@@ -911,29 +306,47 @@ export default function PreviewPage({ params }: { params: { id: string } }) {
 
   const [currentPageId, setCurrentPageId] = useState<string | null>(null);
   const [devicePreview, setDevicePreview] = useState<DevicePreview>('mobile');
-  const [pageHistory, setPageHistory] = useState<string[]>([]);
+  const [pageHistory, setPageHistory] = useState<HistoryEntry[]>([]);
   const [copied, setCopied] = useState(false);
   const [frameScale, setFrameScale] = useState(1);
+
+  // ── Runtime state ──────────────────────────
+  const [appUser, setAppUser] = useState<AppUserSession | null>(null);
+  const [sessionLoaded, setSessionLoaded] = useState(false);
+  const [formValues, setFormValues] = useState<Record<string, any>>({});
+  const [recordCtx, setRecordCtx] = useState<{ record: DBRecord; table: DBTable | null } | null>(null);
+  const [toasts, setToasts] = useState<PreviewToast[]>([]);
+  const toastIdRef = useRef(0);
 
   const app = apps.find(a => a.id === params.id) ?? null;
   const pages = app ? getPagesForApp(params.id) : [];
   const tables = app ? getTablesForApp(params.id) : [];
 
-  // Auth & app guard
+  // Auth & app guard (ハイドレーション完了まで判定しない)
+  const hydrated = useHydrated();
   useEffect(() => {
+    if (!hydrated) return;
     if (!currentUser) { router.replace('/login'); return; }
     if (!app) { router.replace('/workspace'); return; }
-  }, [currentUser, app, router]);
+  }, [hydrated, currentUser, app, router]);
 
-  // Set initial page
+  // Restore app user session (アプリ利用者 = エンドユーザー)
   useEffect(() => {
-    if (pages.length === 0) return;
-    if (currentPageId) return;
-    const startPage =
-      pages.find(p => p.isStartPageLoggedOut) ??
-      pages[0];
+    setAppUser(getAppUserSession(params.id));
+    setSessionLoaded(true);
+  }, [params.id]);
+
+  // Set initial page (ログイン状態に応じたスタートページ)
+  useEffect(() => {
+    if (!sessionLoaded || pages.length === 0 || currentPageId) return;
+    const startPage = resolveStartPage(pages, appUser !== null) ?? pages[0];
     setCurrentPageId(startPage.id);
-  }, [pages, currentPageId]);
+  }, [sessionLoaded, pages, currentPageId, appUser]);
+
+  // Clear form values on page transition
+  useEffect(() => {
+    setFormValues({});
+  }, [currentPageId]);
 
   // Scale to fit viewport
   useEffect(() => {
@@ -945,33 +358,133 @@ export default function PreviewPage({ params }: { params: { id: string } }) {
 
   const currentPage = pages.find(p => p.id === currentPageId) ?? pages[0] ?? null;
 
-  // Action handler
-  const handleAction = useCallback((action: Action) => {
-    switch (action.type) {
-      case 'navigate':
-        if (action.targetPageId) {
-          setPageHistory(h => [...h, currentPageId!]);
-          setCurrentPageId(action.targetPageId);
-        }
-        break;
-      case 'back': {
-        setPageHistory(h => {
-          const prev = h[h.length - 1];
-          if (prev) {
-            setCurrentPageId(prev);
-            return h.slice(0, -1);
-          }
-          return h;
-        });
-        break;
-      }
-      case 'external-link':
-        if (action.targetUrl) {
-          window.open(action.targetUrl, action.openInNewTab ? '_blank' : '_self');
-        }
-        break;
+  // 現在のレコードコンテキストを store の最新値で解決(update-record 後の再描画用)
+  const activeRecord = useMemo<DBRecord | null>(() => {
+    const rec = recordCtx?.record;
+    if (!rec) return null;
+    for (const t of tables) {
+      const found = t.records.find(r => r.id === rec.id);
+      if (found) return found;
     }
-  }, [currentPageId]);
+    return rec;
+  }, [recordCtx, tables]);
+
+  const activeTable = useMemo<DBTable | null>(() => {
+    if (!recordCtx) return null;
+    const tid = recordCtx.table?.id ?? recordCtx.record.tableId;
+    return tables.find(t => t.id === tid) ?? recordCtx.table ?? null;
+  }, [recordCtx, tables]);
+
+  // ── Toast(簡易通知) ───────────────────────
+  const notify = useCallback((msg: string, type: 'success' | 'error' = 'success') => {
+    const id = ++toastIdRef.current;
+    setToasts(t => [...t, { id, msg, type }]);
+    window.setTimeout(() => {
+      setToasts(t => t.filter(x => x.id !== id));
+    }, 2600);
+  }, []);
+
+  // ── Navigation helpers ─────────────────────
+  const jumpToPage = useCallback(
+    (pageId: string) => {
+      if (pageId === currentPageId) return;
+      setPageHistory(h =>
+        currentPageId
+          ? [...h, { pageId: currentPageId, record: recordCtx?.record ?? null, table: recordCtx?.table ?? null }]
+          : h,
+      );
+      setCurrentPageId(pageId);
+      setRecordCtx(null);
+    },
+    [currentPageId, recordCtx],
+  );
+
+  const goBack = useCallback(() => {
+    setPageHistory(h => {
+      const prev = h[h.length - 1];
+      if (!prev) return h;
+      setCurrentPageId(prev.pageId);
+      setRecordCtx(prev.record ? { record: prev.record, table: prev.table } : null);
+      return h.slice(0, -1);
+    });
+  }, []);
+
+  // ── App user setter(logout 時は未ログインスタートページへ) ──
+  const handleSetAppUser = useCallback(
+    (s: AppUserSession | null) => {
+      setAppUser(s);
+      if (!s) {
+        const pgs = useStore.getState().getPagesForApp(params.id);
+        const start = resolveStartPage(pgs, false);
+        if (start) {
+          setCurrentPageId(start.id);
+          setPageHistory([]);
+          setRecordCtx(null);
+          setFormValues({});
+        }
+      }
+    },
+    [params.id],
+  );
+
+  // ── アクション実行(ClickFlow) ─────────────
+  const runElementActions = useCallback(
+    async (element: Element, record?: DBRecord | null, recTable?: DBTable | null) => {
+      if (!element.actions || element.actions.length === 0) return;
+      const store = useStore.getState();
+      // リスト項目タップ時は引数の record、それ以外は現在のレコードコンテキスト
+      const effRecord = record !== undefined ? record : activeRecord;
+      const effTable = record !== undefined ? (recTable ?? null) : activeTable;
+
+      const ctx: ActionContext = {
+        appId: params.id,
+        tables: store.getTablesForApp(params.id),
+        formValues,
+        currentRecord: effRecord,
+        currentTable: effTable,
+        appUser,
+        elements: currentPage?.elements,
+        navigate: (pageId: string) => {
+          setPageHistory(h =>
+            currentPageId
+              ? [...h, { pageId: currentPageId, record: recordCtx?.record ?? null, table: recordCtx?.table ?? null }]
+              : h,
+          );
+          setCurrentPageId(pageId);
+          // currentRecord 付き遷移 → 遷移先で {{フィールド名}} を解決できるようにする
+          setRecordCtx(effRecord ? { record: effRecord, table: effTable } : null);
+        },
+        back: goBack,
+        openUrl: (url: string, newTab?: boolean) => {
+          window.open(url, newTab ? '_blank' : '_self');
+        },
+        addRecord: (tableId, values) => store.addRecord(params.id, tableId, values),
+        updateRecord: (tableId, recordId, values) => store.updateRecord(params.id, tableId, recordId, values),
+        deleteRecord: (tableId, recordId) => store.deleteRecord(params.id, tableId, recordId),
+        setAppUser: handleSetAppUser,
+        notify,
+      };
+
+      await runActions(element.actions, ctx);
+    },
+    [
+      params.id,
+      formValues,
+      appUser,
+      currentPage,
+      currentPageId,
+      recordCtx,
+      activeRecord,
+      activeTable,
+      goBack,
+      handleSetAppUser,
+      notify,
+    ],
+  );
+
+  const setFormValue = useCallback((elementId: string, value: any) => {
+    setFormValues(prev => ({ ...prev, [elementId]: value }));
+  }, []);
 
   // Publish
   const handlePublish = () => {
@@ -995,16 +508,10 @@ export default function PreviewPage({ params }: { params: { id: string } }) {
   const nextPage = currentPageIndex < pages.length - 1 ? pages[currentPageIndex + 1] : null;
 
   const goToPrevPage = () => {
-    if (prevPage) {
-      setPageHistory(h => [...h, currentPageId!]);
-      setCurrentPageId(prevPage.id);
-    }
+    if (prevPage) jumpToPage(prevPage.id);
   };
   const goToNextPage = () => {
-    if (nextPage) {
-      setPageHistory(h => [...h, currentPageId!]);
-      setCurrentPageId(nextPage.id);
-    }
+    if (nextPage) jumpToPage(nextPage.id);
   };
 
   // Device icons (SVG, no emoji)
@@ -1035,42 +542,55 @@ export default function PreviewPage({ params }: { params: { id: string } }) {
     desktop: 'PC',
   };
 
+  // ── Runtime env(エレメントレンダラーへ注入) ──
+  const env: RuntimeEnv = {
+    appId: params.id,
+    tables,
+    appUser,
+    formValues,
+    setFormValue,
+    currentRecord: activeRecord,
+    currentTable: activeTable,
+    runElementActions,
+  };
+
   // Page content renderer (shared across frames)
-  const pageContent = currentPage ? (
-    currentPage.elements.length > 0 ? (
-      currentPage.elements.map(el => (
-        <ElementWrapper
-          key={el.id}
-          element={el}
-          onAction={handleAction}
-        />
-      ))
-    ) : (
-      <div
-        style={{
-          width: '100%',
-          height: '100%',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          gap: 8,
-        }}
-      >
-        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#d1d5db" strokeWidth="1.5">
-          <rect x="3" y="3" width="18" height="18" rx="2" />
-          <path d="M3 9h18M9 21V9" />
-        </svg>
-        <p style={{ color: '#9ca3af', fontSize: 13 }}>このページには要素がありません</p>
-      </div>
-    )
-  ) : (
-    <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <p style={{ color: '#9ca3af', fontSize: 13 }}>ページが見つかりません</p>
-    </div>
+  const pageContent = (
+    <>
+      {currentPage ? (
+        currentPage.elements.length > 0 ? (
+          currentPage.elements.map(el => (
+            <RuntimeElement key={el.id} element={el} env={env} />
+          ))
+        ) : (
+          <div
+            style={{
+              width: '100%',
+              height: '100%',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 8,
+            }}
+          >
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#d1d5db" strokeWidth="1.5">
+              <rect x="3" y="3" width="18" height="18" rx="2" />
+              <path d="M3 9h18M9 21V9" />
+            </svg>
+            <p style={{ color: '#9ca3af', fontSize: 13 }}>このページには要素がありません</p>
+          </div>
+        )
+      ) : (
+        <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <p style={{ color: '#9ca3af', fontSize: 13 }}>ページが見つかりません</p>
+        </div>
+      )}
+      <ToastOverlay toasts={toasts} />
+    </>
   );
 
-  if (!currentUser || !app) return null;
+  if (!hydrated || !currentUser || !app) return null;
 
   return (
     <div className="flex flex-col min-h-screen bg-gray-800">
@@ -1098,6 +618,18 @@ export default function PreviewPage({ params }: { params: { id: string } }) {
             >
               プレビュー
             </span>
+            {appUser && (
+              <span
+                className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium flex-shrink-0 bg-gray-800 text-gray-300 border border-gray-600"
+                title={`アプリ利用者としてログイン中: ${appUser.email}`}
+              >
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                  <circle cx="12" cy="7" r="4" />
+                </svg>
+                {appUser.name || appUser.email}
+              </span>
+            )}
           </div>
         </div>
 
@@ -1213,12 +745,7 @@ export default function PreviewPage({ params }: { params: { id: string } }) {
             {pages.map(p => (
               <button
                 key={p.id}
-                onClick={() => {
-                  if (p.id !== currentPageId) {
-                    setPageHistory(h => [...h, currentPageId!]);
-                    setCurrentPageId(p.id);
-                  }
-                }}
+                onClick={() => jumpToPage(p.id)}
                 className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all ${
                   p.id === currentPageId
                     ? 'text-white shadow-sm'
@@ -1274,49 +801,6 @@ export default function PreviewPage({ params }: { params: { id: string } }) {
           </button>
         </div>
       </div>
-    </div>
-  );
-}
-
-// ─────────────────────────────────────────────
-// Element wrapper that handles click → action
-// ─────────────────────────────────────────────
-function ElementWrapper({
-  element,
-  onAction,
-}: {
-  element: Element;
-  onAction: (action: Action) => void;
-}) {
-  const s = element.style;
-
-  const handleClick = (e: React.MouseEvent) => {
-    if (!element.actions || element.actions.length === 0) return;
-    e.stopPropagation();
-    // Execute first action (primary)
-    onAction(element.actions[0]);
-  };
-
-  const isInteractive =
-    element.type === 'button' ||
-    element.type === 'button2' ||
-    (element.actions && element.actions.length > 0);
-
-  return (
-    <div
-      onClick={handleClick}
-      style={{
-        position: 'absolute',
-        left: s.x ?? 0,
-        top: s.y ?? 0,
-        width: typeof s.width === 'number' ? s.width : (s.width ?? 'auto'),
-        height: typeof s.height === 'number' ? s.height : (s.height ?? 'auto'),
-        opacity: s.opacity !== undefined ? s.opacity / 100 : 1,
-        zIndex: s.zIndex ?? 1,
-        cursor: isInteractive ? 'pointer' : 'default',
-      }}
-    >
-      <PreviewElementContent element={element} />
     </div>
   );
 }

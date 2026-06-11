@@ -10,6 +10,7 @@ import {
   Undo2, Redo2, Eye, Settings, ExternalLink,
 } from 'lucide-react';
 import { useStore } from '@/lib/store';
+import { useHydrated } from '@/lib/useHydrated';
 import { downloadCSV, cn } from '@/lib/utils';
 import type { DBTable, DBField, FieldType } from '@/lib/types';
 import AddFieldModal from '@/components/database/AddFieldModal';
@@ -240,11 +241,13 @@ export default function DataPage({ params }: { params: { id: string } }) {
   const appId = params.id;
 
   // ── Guards ─────────────────────────────────────────────────────────────
+  const hydrated = useHydrated();
   useEffect(() => {
+    if (!hydrated) return;
     if (!currentUser) { router.replace('/login'); return; }
     const app = apps.find(a => a.id === appId);
     if (!app) router.replace('/workspace');
-  }, [currentUser, apps, appId, router]);
+  }, [hydrated, currentUser, apps, appId, router]);
 
   const app = apps.find(a => a.id === appId);
   const tables = getTablesForApp(appId);
@@ -305,7 +308,7 @@ export default function DataPage({ params }: { params: { id: string } }) {
     return () => document.removeEventListener('click', handler);
   }, []);
 
-  if (!currentUser || !app) return null;
+  if (!hydrated || !currentUser || !app) return null;
 
   // ── Derived ─────────────────────────────────────────────────────────────
   const selectedTable: DBTable | undefined = tables.find(t => t.id === selectedTableId);

@@ -14,9 +14,13 @@ import {
   MapPin, QrCode, X, ChevronUp, Pencil, ZoomIn, ZoomOut,
 } from 'lucide-react';
 import { useStore } from '@/lib/store';
+import { useHydrated } from '@/lib/useHydrated';
 import { generateId, cn } from '@/lib/utils';
-import type { Element, ElementType, Page, ActionType } from '@/lib/types';
+import { fileToDataUrl } from '@/lib/runtime';
+import type { Element, ElementType, Page, DBTable } from '@/lib/types';
 import CanvasElement from '@/components/builder/CanvasElement';
+import ActionsPanel from '@/components/builder/ActionsPanel';
+import DataBindingPanel from '@/components/builder/DataBindingPanel';
 
 // ─── Device dimensions ─────────────────────────────────────────────────────
 const DEVICE_SIZES = {
@@ -209,7 +213,9 @@ export default function BuilderPage({ params }: { params: { id: string } }) {
   } = store;
 
   // ── Initialization ──────────────────────────────────────────────────────
+  const hydrated = useHydrated();
   useEffect(() => {
+    if (!hydrated) return;
     if (!currentUser) { router.replace('/login'); return; }
     const app = apps.find(a => a.id === params.id);
     if (!app) { router.replace('/workspace'); return; }
@@ -336,7 +342,7 @@ export default function BuilderPage({ params }: { params: { id: string } }) {
     updateApp(app.id, { published: true, publishedUrl: `https://click-app.example.com/${app.id}` });
   };
 
-  if (!currentUser || !app) return null;
+  if (!hydrated || !currentUser || !app) return null;
 
   // ── Canvas view ──────────────────────────────────────────────────────────
   return (
@@ -748,6 +754,7 @@ export default function BuilderPage({ params }: { params: { id: string } }) {
               appId={params.id}
               pageId={currentPage?.id ?? ''}
               pages={pages}
+              pageElements={currentPage?.elements ?? []}
               tables={tables}
               rightPanelTab={rightPanelTab}
               setRightPanelTab={setRightPanelTab}
@@ -1012,13 +1019,14 @@ function AppSettings({
 
 // ─── Element inspector (right panel when element selected) ────────────────
 function ElementInspector({
-  element, appId, pageId, pages, tables, rightPanelTab, setRightPanelTab, onUpdate,
+  element, appId, pageId, pages, pageElements, tables, rightPanelTab, setRightPanelTab, onUpdate,
 }: {
   element: Element;
   appId: string;
   pageId: string;
   pages: Page[];
-  tables: any[];
+  pageElements: Element[];
+  tables: DBTable[];
   rightPanelTab: string;
   setRightPanelTab: (t: any) => void;
   onUpdate: (u: Partial<Element>) => void;
@@ -1028,12 +1036,13 @@ function ElementInspector({
 
   return (
     <div className="flex flex-col h-full">
-      {/* 3 tabs */}
+      {/* 4 tabs */}
       <div className="flex border-b border-gray-200 flex-shrink-0">
         {[
           { id: 'element', label: 'エレメント' },
           { id: 'style', label: 'スタイル' },
-          { id: 'actions', label: 'アクション' },
+          { id: 'data', label: 'データ' },
+          { id: 'actions', label: 'ClickFlow' },
         ].map(t => (
           <button
             key={t.id}
@@ -1065,6 +1074,11 @@ function ElementInspector({
                 />
                 <Pencil size={11} className="text-gray-400 flex-shrink-0" />
               </div>
+              {['input', 'password-input', 'date-input', 'file-input', 'image-input', 'form', 'dropdown'].includes(element.type) && (
+                <p className="text-[9.5px] text-gray-400 mt-1 leading-relaxed">
+                  この名前はClickFlowの「フォーム入力」選択時に表示されます
+                </p>
+              )}
             </InspectorSection>
 
             {/* 表示設定 */}
@@ -1102,13 +1116,21 @@ function ElementInspector({
             )}
 
             {['image', 'video'].includes(element.type) && (
-              <CollapsibleSection label="URL" defaultOpen>
+              <CollapsibleSection label={element.type === 'image' ? '画像' : 'URL'} defaultOpen>
                 <input
                   value={element.src ?? ''}
                   onChange={e => onUpdate({ src: e.target.value })}
                   placeholder="https://..."
                   className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:border-brand"
                 />
+                {element.type === 'image' && (
+                  <>
+                    <ImageUploadButton onUpload={dataUrl => onUpdate({ src: dataUrl })} />
+                    {element.src?.startsWith('data:') && (
+                      <p className="text-[9.5px] text-gray-400">アップロード済み画像が設定されています</p>
+                    )}
+                  </>
+                )}
               </CollapsibleSection>
             )}
 
@@ -1268,101 +1290,65 @@ function ElementInspector({
           </div>
         )}
 
-        {/* アクション tab */}
+        {/* データ tab */}
+        {rightPanelTab === 'data' && (
+          <DataBindingPanel element={element} tables={tables} onUpdate={onUpdate} />
+        )}
+
+        {/* ClickFlow(アクション) tab */}
         {rightPanelTab === 'actions' && (
-          <ActionsPanel element={element} pages={pages} onUpdate={onUpdate} />
+          <ActionsPanel
+            element={element}
+            pages={pages}
+            tables={tables}
+            pageElements={pageElements}
+            onUpdate={onUpdate}
+          />
         )}
       </div>
     </div>
   );
 }
 
-// ─── Actions panel ────────────────────────────────────────────────────────
-function ActionsPanel({ element, pages, onUpdate }: { element: Element; pages: Page[]; onUpdate: (u: Partial<Element>) => void }) {
-  const actions = element.actions ?? [];
-
-  const addAction = () => {
-    const newAction = { id: generateId(), type: 'navigate' as ActionType };
-    onUpdate({ actions: [...actions, newAction] });
-  };
-
-  const updateAction = (id: string, updates: any) => {
-    onUpdate({ actions: actions.map(a => a.id === id ? { ...a, ...updates } : a) });
-  };
-
-  const removeAction = (id: string) => {
-    onUpdate({ actions: actions.filter(a => a.id !== id) });
-  };
-
-  const ACTION_LABELS: Record<string, string> = {
-    navigate: 'ページ移動', back: '←戻る', 'external-link': '外部リンク',
-    'create-record': 'レコード作成', 'update-record': 'レコード更新', 'delete-record': 'レコード削除',
-    login: 'ログイン', logout: 'ログアウト', register: '登録', custom: 'カスタム',
-  };
+// ─── Image upload button (uses fileToDataUrl from lib/runtime) ────────────
+function ImageUploadButton({ onUpload }: { onUpload: (dataUrl: string) => void }) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [busy, setBusy] = useState(false);
 
   return (
-    <div className="p-3 space-y-3">
-      {/* Add action button - prominent brand pill */}
+    <>
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={async e => {
+          const file = e.target.files?.[0];
+          if (!file) return;
+          setBusy(true);
+          try {
+            const dataUrl = await fileToDataUrl(file);
+            onUpload(dataUrl);
+          } catch (err) {
+            console.error('[builder] 画像のアップロードに失敗しました:', err);
+          } finally {
+            setBusy(false);
+            e.target.value = '';
+          }
+        }}
+      />
       <button
-        onClick={addAction}
-        className="w-full flex items-center justify-center gap-2 py-3 bg-brand text-white rounded-full text-sm font-medium hover:bg-brand-600 transition-colors"
+        onClick={() => inputRef.current?.click()}
+        disabled={busy}
+        className={cn(
+          'w-full flex items-center justify-center gap-1.5 py-1.5 text-xs border border-brand text-brand rounded-lg hover:bg-brand/5 transition-colors font-medium',
+          busy && 'opacity-50 cursor-not-allowed',
+        )}
       >
-        <Plus size={16} />
-        アクションを追加する
+        <Upload size={12} />
+        {busy ? '変換中...' : '画像をアップロード'}
       </button>
-
-      {actions.length === 0 && (
-        <p className="text-xs text-gray-400 text-center py-4">アクションがありません</p>
-      )}
-
-      {actions.map(action => (
-        <div key={action.id} className="border border-gray-200 rounded-xl p-3 space-y-2 bg-gray-50/50">
-          <div className="flex items-center gap-2">
-            <select
-              value={action.type}
-              onChange={e => updateAction(action.id, { type: e.target.value })}
-              className="flex-1 border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:border-brand bg-white"
-            >
-              {Object.entries(ACTION_LABELS).map(([val, label]) => (
-                <option key={val} value={val}>{label}</option>
-              ))}
-            </select>
-            <button
-              onClick={() => removeAction(action.id)}
-              className="w-7 h-7 flex items-center justify-center text-gray-400 hover:text-red-500 rounded-lg hover:bg-red-50 transition-colors flex-shrink-0"
-            >
-              <Trash2 size={13} />
-            </button>
-          </div>
-
-          {action.type === 'navigate' && (
-            <div>
-              <label className="text-[10px] text-gray-500 block mb-1">移動先ページ</label>
-              <select
-                value={(action as any).targetPageId ?? ''}
-                onChange={e => updateAction(action.id, { targetPageId: e.target.value })}
-                className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:border-brand bg-white"
-              >
-                <option value="">ページを選択</option>
-                {pages.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-              </select>
-            </div>
-          )}
-
-          {action.type === 'external-link' && (
-            <div>
-              <label className="text-[10px] text-gray-500 block mb-1">URL</label>
-              <input
-                value={(action as any).targetUrl ?? ''}
-                onChange={e => updateAction(action.id, { targetUrl: e.target.value })}
-                placeholder="https://..."
-                className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:border-brand"
-              />
-            </div>
-          )}
-        </div>
-      ))}
-    </div>
+    </>
   );
 }
 
