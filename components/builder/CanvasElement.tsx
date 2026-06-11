@@ -728,48 +728,75 @@ export default function CanvasElement({
 }: CanvasElementProps) {
   const s = element.style;
 
-  // Improved drag state using a single ref — no closure staleness issues
+  // Threshold-based drag with rAF for smooth movement
   const dragState = useRef<{
     startX: number;
     startY: number;
     origX: number;
     origY: number;
+    dragging: boolean;
+    rafId: number | null;
+    pendingX: number;
+    pendingY: number;
   } | null>(null);
+
+  const elementRef = useRef(element);
+  elementRef.current = element;
 
   const handleMouseDown = useCallback(
     (e: React.MouseEvent) => {
+      if (e.button !== 0) return;
       e.stopPropagation();
 
-      if (!isSelected) {
-        onSelect();
-        return;
-      }
+      // Always select immediately on mousedown
+      onSelect();
 
-      if (element.locked) return;
+      if (elementRef.current.locked) return;
 
       e.preventDefault();
+
+      const origX = elementRef.current.style.x ?? 0;
+      const origY = elementRef.current.style.y ?? 0;
 
       dragState.current = {
         startX: e.clientX,
         startY: e.clientY,
-        origX: s.x ?? 0,
-        origY: s.y ?? 0,
+        origX,
+        origY,
+        dragging: false,
+        rafId: null,
+        pendingX: origX,
+        pendingY: origY,
       };
 
       const onMove = (me: MouseEvent) => {
-        if (!dragState.current) return;
-        const dx = (me.clientX - dragState.current.startX) / scale;
-        const dy = (me.clientY - dragState.current.startY) / scale;
-        onUpdate({
-          style: {
-            ...element.style,
-            x: Math.round(dragState.current.origX + dx),
-            y: Math.round(dragState.current.origY + dy),
-          },
-        });
+        const state = dragState.current;
+        if (!state) return;
+        const dx = (me.clientX - state.startX) / scale;
+        const dy = (me.clientY - state.startY) / scale;
+        // 4px threshold before drag starts
+        if (!state.dragging && Math.abs(dx) < 4 && Math.abs(dy) < 4) return;
+        state.dragging = true;
+        state.pendingX = Math.round(state.origX + dx);
+        state.pendingY = Math.round(state.origY + dy);
+        if (state.rafId === null) {
+          state.rafId = requestAnimationFrame(() => {
+            if (dragState.current) {
+              onUpdate({
+                style: {
+                  ...elementRef.current.style,
+                  x: dragState.current.pendingX,
+                  y: dragState.current.pendingY,
+                },
+              });
+              dragState.current.rafId = null;
+            }
+          });
+        }
       };
 
       const onUp = () => {
+        if (dragState.current?.rafId) cancelAnimationFrame(dragState.current.rafId);
         dragState.current = null;
         window.removeEventListener('mousemove', onMove);
         window.removeEventListener('mouseup', onUp);
@@ -778,7 +805,7 @@ export default function CanvasElement({
       window.addEventListener('mousemove', onMove);
       window.addEventListener('mouseup', onUp);
     },
-    [element, isSelected, onSelect, onUpdate, s.x, s.y, scale],
+    [onSelect, onUpdate, scale],
   );
 
   const width = s.width ?? 'auto';

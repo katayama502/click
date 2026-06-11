@@ -196,6 +196,6 @@ export interface CanvasSnapshot {
 // ============================================================
 // Editor State
 // ============================================================
-export type RightPanelTab = 'properties' | 'style' | 'data' | 'actions' | 'app-settings';
+export type RightPanelTab = 'element' | 'style' | 'data' | 'actions' | 'app-settings';
 export type LeftPanelTab = 'pages' | 'elements' | 'layers';
 export type DevicePreview = 'mobile' | 'tablet' | 'desktop';

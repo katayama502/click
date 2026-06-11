@@ -1040,7 +1040,7 @@ function ElementInspector({
             onClick={() => setRightPanelTab(t.id)}
             className={cn(
               'flex-1 py-2.5 text-[11px] font-medium transition-colors border-b-2',
-              (rightPanelTab === t.id || (t.id === 'element' && rightPanelTab === 'properties'))
+              rightPanelTab === t.id
                 ? 'text-brand border-brand'
                 : 'text-gray-500 border-transparent hover:text-gray-700',
             )}
@@ -1052,7 +1052,7 @@ function ElementInspector({
 
       <div className="flex-1 overflow-y-auto">
         {/* エレメント tab */}
-        {(rightPanelTab === 'element' || rightPanelTab === 'properties') && (
+        {rightPanelTab === 'element' && (
           <div className="p-3 space-y-4">
             {/* Element name section */}
             <InspectorSection label="エレメント名">
@@ -1091,7 +1091,7 @@ function ElementInspector({
               </CollapsibleSection>
             )}
 
-            {['input', 'password-input', 'date-input', 'file-input', 'dropdown', 'search-element'].includes(element.type) && (
+            {['input', 'password-input', 'date-input', 'file-input', 'dropdown', 'search-element', 'image-input'].includes(element.type) && (
               <CollapsibleSection label="プレースホルダー" defaultOpen>
                 <input
                   value={element.placeholder ?? ''}
@@ -1112,8 +1112,41 @@ function ElementInspector({
               </CollapsibleSection>
             )}
 
+            {['youtube-element', 'vimeo-element', 'web-view'].includes(element.type) && (
+              <CollapsibleSection label={element.type === 'web-view' ? 'URL' : '動画URL'} defaultOpen>
+                <input
+                  value={element.src ?? ''}
+                  onChange={e => onUpdate({ src: e.target.value })}
+                  placeholder={element.type === 'youtube-element' ? 'https://www.youtube.com/watch?v=...' : element.type === 'vimeo-element' ? 'https://vimeo.com/...' : 'https://...'}
+                  className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:border-brand"
+                />
+              </CollapsibleSection>
+            )}
+
+            {element.type === 'check' && (
+              <CollapsibleSection label="ラベルテキスト" defaultOpen>
+                <input
+                  value={element.label ?? ''}
+                  onChange={e => onUpdate({ label: e.target.value })}
+                  placeholder="チェック項目"
+                  className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:border-brand"
+                />
+              </CollapsibleSection>
+            )}
+
+            {element.type === 'star-rating' && (
+              <CollapsibleSection label="評価テキスト" defaultOpen>
+                <input
+                  value={element.content ?? ''}
+                  onChange={e => onUpdate({ content: e.target.value })}
+                  placeholder="評価コメント"
+                  className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:border-brand"
+                />
+              </CollapsibleSection>
+            )}
+
             {/* データ連携 */}
-            <CollapsibleSection label="データ連携" defaultOpen={false}>
+            <CollapsibleSection label="データ連携" defaultOpen={['list', 'data-list', 'horizontal-list', 'card-list', 'custom-list', 'tag-list', 'avatar-list', 'db-table'].includes(element.type)}>
               <div className="space-y-2">
                 <select
                   value={element.dataBinding?.tableId ?? ''}

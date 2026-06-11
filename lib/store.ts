@@ -704,13 +704,13 @@ export const useStore = create<AppBuilderState>()(
       // ── Editor UI ─────────────────────────────────────────
       selectedPageId: null,
       selectedElementId: null,
-      rightPanelTab: 'properties',
+      rightPanelTab: 'element',
       leftPanelTab: 'elements',
       devicePreview: 'mobile',
       zoom: 1,
       setSelectedPage: (id) => set({ selectedPageId: id, selectedElementId: null }),
       setSelectedElement: (id) =>
-        set({ selectedElementId: id, rightPanelTab: id ? 'properties' : 'app-settings' }),
+        set({ selectedElementId: id, rightPanelTab: id ? 'element' : 'app-settings' }),
       setRightPanelTab: (tab) => set({ rightPanelTab: tab }),
       setLeftPanelTab: (tab) => set({ leftPanelTab: tab }),
       setDevicePreview: (device) => set({ devicePreview: device }),
